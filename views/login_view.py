@@ -12,6 +12,7 @@ class LoginView(ctk.CTkFrame):
         self._show_register = False
         self._build_ui()
 
+
     # ------------------------------------------------------------------ build
     def _build_ui(self):
         self.columnconfigure(0, weight=1)
