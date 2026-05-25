@@ -4,6 +4,7 @@ from views.notifications_page import NotificationsPage
 from controllers.service_controller import ServiceController
 from controllers.salon_controller import SalonController
 from utils.session import Session
+from controllers.review_controller import ReviewController, ReviewError
 from controllers.appointment_controller import AppointmentController, AppointmentError
 from datetime import datetime, timedelta
 
@@ -350,6 +351,11 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cal_back_action = None   # set by _go_cal / _go_mod_cal
         self._unavail_back_fn = None   # set by _go_unavailable
 
+        # review state — UC 2.6
+        self._rev_appt  = None   # AppointmentDetail being reviewed
+        self._rev_rating = 0     # 1–5, 0 = not yet selected
+        self._star_btns: list[ctk.CTkButton] = []
+
 
         self._build_list_frame()
         self._build_svc_frame()
@@ -360,6 +366,9 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._build_mod_detail_frame()
         self._build_mod_confirm_frame()
         self._build_cancel_confirm_frame()
+        self._build_review_form_frame()
+        self._build_review_preview_frame()
+        self._build_review_cancel_confirm_frame()
 
         self._go_list()
 
@@ -368,7 +377,8 @@ class _AppointmentsPage(ctk.CTkFrame):
         for f in (
             self._list_frame, self._svc_frame, self._emp_frame,
             self._cal_frame, self._confirm_frame, self._unavailable_frame,
-            self._mod_detail_frame, self._mod_confirm_frame, self._cancel_confirm_frame,
+            self._mod_detail_frame, self._mod_confirm_frame, self._cancel_confirm_frame, self._review_form_frame, self._review_preview_frame,
+            self._review_cancel_confirm_frame,
 
 
         ):
@@ -434,7 +444,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             top.pack(fill="x", padx=16, pady=(12, 4))
             ctk.CTkLabel(
                 top,
-                text=f"📅  {appt.scheduled_at}  —  {appt.service_name}",
+                text=f" {appt.scheduled_at}  —  {appt.service_name}",
                 font=ctk.CTkFont(size=13, weight="bold"),
             ).pack(side="left")
             status_text, status_color = _APPT_STATUS_MAP.get(
@@ -466,6 +476,24 @@ class _AppointmentsPage(ctk.CTkFrame):
                     font=ctk.CTkFont(size=11),
                     command=lambda a=appt: self._go_mod_detail(a),
                 ).pack(side="right")
+            if appt.status == "done" and not ReviewController.exists_for_appointment(appt.id):
+                review_footer = ctk.CTkFrame(card, fg_color="transparent")
+                review_footer.pack(fill="x", padx=12, pady=(0, 10))
+                ctk.CTkButton(
+                    review_footer, text="⭐ Αξιολόγηση", width=140, height=28,
+                    fg_color=("#f39c12", "#d68910"), hover_color=("#d68910", "#b7770d"),
+                    font=ctk.CTkFont(size=11),
+                    command=lambda a=appt: self._go_review_form(a),
+                ).pack(side="right")
+
+            if appt.status == "done" and ReviewController.exists_for_appointment(appt.id):
+                ctk.CTkLabel(
+                    card,
+                    text="✔ Έχετε αξιολογήσει αυτό το ραντεβού.",
+                    text_color=("gray50", "gray60"),
+                    font=ctk.CTkFont(size=11),
+                    anchor="e",
+                ).pack(fill="x", padx=20, pady=(0, 8))
 
     #STEP 1 
     def _build_svc_frame(self):
@@ -1096,3 +1124,263 @@ class _AppointmentsPage(ctk.CTkFrame):
         except AppointmentError as e:
             self._cancel_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
             self._cancel_msg.set(str(e))
+   
+    def _build_review_form_frame(self):
+        self._review_form_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._review_form_frame.columnconfigure(0, weight=1)
+        self._review_form_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._review_form_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+        card.columnconfigure(0, weight=1)
+
+        # header
+        hdr = ctk.CTkFrame(card, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=52, pady=(32, 0))
+        hdr.columnconfigure(1, weight=1)
+        ctk.CTkButton(
+            hdr, text="← Πίσω", width=100,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_list,
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            hdr, text="⭐  Αξιολόγηση Υπηρεσίας",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).grid(row=0, column=1, sticky="w", padx=16)
+
+        # appointment info
+        self._rev_info_label = ctk.CTkLabel(
+            card, text="", justify="left",
+            font=ctk.CTkFont(size=13), text_color="gray",
+        )
+        self._rev_info_label.grid(row=1, column=0, sticky="w", padx=52, pady=(20, 0))
+
+        # star rating row
+        ctk.CTkLabel(
+            card, text="Βαθμολογία:", anchor="w",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).grid(row=2, column=0, sticky="w", padx=52, pady=(20, 4))
+
+        star_row = ctk.CTkFrame(card, fg_color="transparent")
+        star_row.grid(row=3, column=0, sticky="w", padx=48)
+        self._star_btns = []
+        for i in range(1, 6):
+            btn = ctk.CTkButton(
+                star_row,
+                text="☆",
+                width=44, height=44,
+                font=ctk.CTkFont(size=28),
+                fg_color="transparent",
+                hover_color=("gray85", "gray25"),
+                text_color=("#f39c12", "#f5b041"),
+                corner_radius=6,
+                command=lambda n=i: self._set_rating(n),
+            )
+            btn.pack(side="left", padx=2)
+            self._star_btns.append(btn)
+
+        self._rev_rating_hint = ctk.CTkLabel(
+            card, text="", text_color="gray", font=ctk.CTkFont(size=11),
+        )
+        self._rev_rating_hint.grid(row=4, column=0, sticky="w", padx=52, pady=(2, 0))
+
+        # comment
+        ctk.CTkLabel(
+            card, text="Σχόλιο (προαιρετικό):", anchor="w",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).grid(row=5, column=0, sticky="w", padx=52, pady=(20, 4))
+        self._rev_comment = ctk.CTkEntry(
+            card, width=380, placeholder_text="Γράψτε την εμπειρία σας…",
+        )
+        self._rev_comment.grid(row=6, column=0, sticky="w", padx=52)
+
+        # validation message
+        self._rev_form_msg = ctk.StringVar()
+        self._rev_form_msg_label = ctk.CTkLabel(
+            card, textvariable=self._rev_form_msg,
+            text_color=("#e74c3c", "#e74c3c"),
+            font=ctk.CTkFont(size=12),
+        )
+        self._rev_form_msg_label.grid(row=7, column=0, sticky="w", padx=52, pady=(8, 0))
+
+        # action button
+        ctk.CTkButton(
+            card, text="Προεπισκόπηση →", width=200,
+            command=self._go_review_preview,
+        ).grid(row=8, column=0, pady=(16, 40))
+
+    def _go_review_form(self, appt=None):
+        """Βήμα 3: εμφάνιση φόρμας αξιολόγησης. Alt flow 1: έλεγχος status."""
+        if appt is not None:
+            self._rev_appt = appt
+
+        a = self._rev_appt
+        # alt flow 1 — το ραντεβού δεν έχει ολοκληρωθεί
+        if a.status != "done":
+            self._list_msg_var.set(
+                "ℹ Μπορείτε να αξιολογήσετε μόνο ολοκληρωμένα ραντεβού."
+            )
+            self.after(4000, lambda: self._list_msg_var.set(""))
+            self._go_list()
+            return
+
+        self._rev_info_label.configure(
+            text=(
+                f"Υπηρεσία:    {a.service_name}\n"
+                f"Υπάλληλος:  {a.employee_name}\n"
+                f"Ημερομηνία: {a.scheduled_at}"
+            )
+        )
+        self._rev_rating = 0
+        self._update_stars()
+        self._rev_comment.delete(0, "end")
+        self._rev_form_msg.set("")
+
+        self._hide_all()
+        self._review_form_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _set_rating(self, n: int):
+        self._rev_rating = n
+        self._update_stars()
+        self._rev_form_msg.set("")
+
+    def _update_stars(self):
+        _RATING_LABELS = {1: "Κακή", 2: "Μέτρια", 3: "Καλή", 4: "Πολύ καλή", 5: "Εξαιρετική"}
+        for i, btn in enumerate(self._star_btns, start=1):
+            btn.configure(text="★" if i <= self._rev_rating else "☆")
+        hint = _RATING_LABELS.get(self._rev_rating, "Κάντε κλικ για να επιλέξετε βαθμολογία")
+        self._rev_rating_hint.configure(text=hint)
+
+    # UC 2.6 — REVIEW PREVIEW 
+    def _build_review_preview_frame(self):
+        self._review_preview_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._review_preview_frame.columnconfigure(0, weight=1)
+        self._review_preview_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._review_preview_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        ctk.CTkLabel(
+            card, text="  Προεπισκόπηση Αξιολόγησης",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(padx=60, pady=(36, 16))
+
+        self._rev_preview_text = ctk.CTkLabel(
+            card, text="", justify="left",
+            font=ctk.CTkFont(size=13), text_color="gray",
+        )
+        self._rev_preview_text.pack(padx=60, pady=(0, 8))
+
+        self._rev_preview_msg = ctk.StringVar()
+        self._rev_preview_msg_label = ctk.CTkLabel(
+            card, textvariable=self._rev_preview_msg,
+            font=ctk.CTkFont(size=12), text_color=("#e74c3c", "#e74c3c"),
+        )
+        self._rev_preview_msg_label.pack(padx=60, pady=(0, 8))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(pady=(4, 36))
+        ctk.CTkButton(
+            btn_row, text="← Επεξεργασία", width=140,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_review_form,
+        ).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(
+            btn_row, text="Ακύρωση", width=110,
+            fg_color=("gray80", "gray30"), hover_color=("gray70", "gray25"),
+            text_color=("gray10", "gray90"),
+            command=self._go_review_cancel_confirm,
+        ).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(
+            btn_row, text="✓  Υποβολή", width=140,
+            command=self._submit_review,
+        ).pack(side="left")
+
+    def _go_review_preview(self):
+        """Βήμα 6: προεπισκόπηση. Alt flow 3: έλεγχος αν υπάρχει βαθμολογία."""
+        # alt flow 3 — ελλιπή στοιχεία (χωρίς βαθμολογία)
+        if self._rev_rating == 0:
+            self._rev_form_msg.set("⚠  Επιλέξτε βαθμολογία (1–5 αστέρια).")
+            return
+
+        a       = self._rev_appt
+        stars   = "★" * self._rev_rating + "☆" * (5 - self._rev_rating)
+        comment = self._rev_comment.get().strip()
+
+        self._rev_preview_text.configure(
+            text=(
+                f"Υπηρεσία:    {a.service_name}\n"
+                f"Υπάλληλος:  {a.employee_name}\n"
+                f"Ημερομηνία: {a.scheduled_at}\n"
+                f"Βαθμολογία: {stars}  ({self._rev_rating}/5)\n"
+                f"Σχόλιο:      {comment if comment else '—'}"
+            )
+        )
+        self._rev_preview_msg.set("")
+        self._hide_all()
+        self._review_preview_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _submit_review(self):
+        """Βήμα 8-9: υποβολή αξιολόγησης."""
+        user    = Session.current_user()
+        a       = self._rev_appt
+        comment = self._rev_comment.get().strip() or None
+        try:
+            ReviewController.submit(
+                appointment_id=a.id,
+                customer_id=user.id,
+                employee_id=a.employee_id,
+                service_id=a.service_id,
+                service_name=a.service_name,
+                rating=self._rev_rating,
+                comment=comment,
+            )
+            self._list_msg_var.set(
+                f"✔ Η αξιολόγησή σας για «{a.service_name}» υποβλήθηκε επιτυχώς!"
+            )
+            self.after(6000, lambda: self._list_msg_var.set(""))
+            self._go_list()
+        except ReviewError as e:
+            self._rev_preview_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+            self._rev_preview_msg.set(str(e))
+
+    # UC 2.6 — REVIEW CANCEL CONFIRM 
+    def _build_review_cancel_confirm_frame(self):
+        self._review_cancel_confirm_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._review_cancel_confirm_frame.columnconfigure(0, weight=1)
+        self._review_cancel_confirm_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._review_cancel_confirm_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        ctk.CTkLabel(
+            card, text="✘  Ακύρωση Αξιολόγησης",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(padx=60, pady=(36, 10))
+
+        ctk.CTkLabel(
+            card,
+            text="Θέλετε σίγουρα να ακυρώσετε την υποβολή\nτης αξιολόγησης;",
+            text_color="gray", justify="center",
+        ).pack(padx=60, pady=(0, 24))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(pady=(0, 36))
+        ctk.CTkButton(
+            btn_row, text="Όχι, επιστροφή", width=160,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_review_preview,
+        ).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            btn_row, text="Ναι, ακύρωση", width=150,
+            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            command=self._go_list,
+        ).pack(side="left")
+
+    def _go_review_cancel_confirm(self):
+        """Alt flow 2: ζητά επιβεβαίωση ακύρωσης πριν την οριστικοποίηση."""
+        self._hide_all()
+        self._review_cancel_confirm_frame.grid(row=0, column=0, sticky="nsew")
