@@ -339,7 +339,11 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._sel_slot      = None   # dict {time_str, start_iso, employee_id, employee_name}
         self._cal_date      = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
 
-        
+        # modification state — UC 2.12
+        self._mod_appt      = None   # AppointmentDetail being modified
+        self._mod_sel_slot  = None   # newly chosen slot for reschedule
+        self._mod_cal_date  = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+
 
         # shared cal-frame mode ("new" | "mod")
         self._cal_mode        = "new"
@@ -353,7 +357,9 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._build_cal_frame()
         self._build_confirm_frame()
         self._build_unavailable_frame()
-
+        self._build_mod_detail_frame()
+        self._build_mod_confirm_frame()
+        self._build_cancel_confirm_frame()
 
         self._go_list()
 
@@ -362,7 +368,8 @@ class _AppointmentsPage(ctk.CTkFrame):
         for f in (
             self._list_frame, self._svc_frame, self._emp_frame,
             self._cal_frame, self._confirm_frame, self._unavailable_frame,
-         
+            self._mod_detail_frame, self._mod_confirm_frame, self._cancel_confirm_frame,
+
 
         ):
             f.grid_remove()
@@ -380,7 +387,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 8))
         hdr.columnconfigure(0, weight=1)
         ctk.CTkLabel(
-            hdr, text="📅 Ραντεβού μου",
+            hdr, text=" Ραντεβού μου",
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkButton(
@@ -450,7 +457,15 @@ class _AppointmentsPage(ctk.CTkFrame):
                 text_color="gray", font=ctk.CTkFont(size=12),
             ).pack(fill="x", padx=16, pady=(0, 6))
 
-            
+            if appt.status in ("pending", "confirmed"):
+                footer = ctk.CTkFrame(card, fg_color="transparent")
+                footer.pack(fill="x", padx=12, pady=(0, 10))
+                ctk.CTkButton(
+                    footer, text="Τροποποίηση →", width=140, height=28,
+                    fg_color=("#2980b9", "#1a6fa0"), hover_color=("#2471a3", "#155f8a"),
+                    font=ctk.CTkFont(size=11),
+                    command=lambda a=appt: self._go_mod_detail(a),
+                ).pack(side="right")
 
     # ================================================================ STEP 1 — choose service
     def _build_svc_frame(self):
@@ -634,6 +649,14 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cal_frame.grid(row=0, column=0, sticky="nsew")
         self._render_week()
 
+    def _go_mod_cal(self):
+        self._cal_mode = "mod"
+        self._cal_back_action = self._go_mod_detail
+        self._cal_title_label.configure(text="Νέα Ημερομηνία & Ώρα")
+        self._mod_cal_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        self._hide_all()
+        self._cal_frame.grid(row=0, column=0, sticky="nsew")
+        self._render_week()
 
     def _prev_week(self):
         d = self._mod_cal_date if self._cal_mode == "mod" else self._cal_date
@@ -701,7 +724,13 @@ class _AppointmentsPage(ctk.CTkFrame):
             slots = AppointmentController.get_available_slots(
                 date_str, self._sel_service.id, self._sel_employee["id"],
             )
-        
+        else:
+            slots = AppointmentController.get_available_slots_for_reschedule(
+                date_str,
+                self._mod_appt.employee_id,
+                self._mod_appt.duration_min,
+                self._mod_appt.id,
+            )
 
         if not slots:
             ctk.CTkLabel(
@@ -737,7 +766,9 @@ class _AppointmentsPage(ctk.CTkFrame):
         if self._cal_mode == "new":
             self._sel_slot = slot
             self._go_confirm()
-       
+        else:
+            self._mod_sel_slot = slot
+            self._go_mod_confirm()       
 
     # ================================================================ STEP 4 — confirm
     def _build_confirm_frame(self):
@@ -749,7 +780,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
-            card, text="📋 Επιβεβαίωση Ραντεβού",
+            card, text=" Επιβεβαίωση Ραντεβού",
             font=ctk.CTkFont(size=18, weight="bold"),
         ).pack(padx=52, pady=(36, 16))
 
@@ -852,3 +883,216 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._hide_all()
         self._unavailable_frame.grid(row=0, column=0, sticky="nsew")
 
+# ================================================================ UC 2.12 — MODIFICATION DETAIL
+    def _build_mod_detail_frame(self):
+        self._mod_detail_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._mod_detail_frame.columnconfigure(0, weight=1)
+        self._mod_detail_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._mod_detail_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        hdr = ctk.CTkFrame(card, fg_color="transparent")
+        hdr.pack(fill="x", padx=40, pady=(28, 8))
+        hdr.columnconfigure(1, weight=1)
+        ctk.CTkButton(
+            hdr, text="← Πίσω", width=90,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_list,
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            hdr, text="Στοιχεία Ραντεβού",
+            font=ctk.CTkFont(size=17, weight="bold"),
+        ).grid(row=0, column=1, sticky="w", padx=16)
+
+        self._mod_detail_text = ctk.CTkLabel(
+            card, text="", justify="left",
+            font=ctk.CTkFont(size=13), text_color="gray",
+        )
+        self._mod_detail_text.pack(padx=40, pady=(4, 8), anchor="w")
+
+        self._mod_detail_status_lbl = ctk.CTkLabel(
+            card, text="", font=ctk.CTkFont(size=13, weight="bold"),
+        )
+        self._mod_detail_status_lbl.pack(padx=40, pady=(0, 16))
+
+        self._mod_detail_btns = ctk.CTkFrame(card, fg_color="transparent")
+        self._mod_detail_btns.pack(pady=(0, 36))
+
+    def _go_mod_detail(self, appt=None):
+        if appt is not None:
+            self._mod_appt = appt
+
+        a = self._mod_appt
+        status_text, status_color = _APPT_STATUS_MAP.get(a.status, (a.status, ("gray", "gray")))
+
+        self._mod_detail_text.configure(text=(
+            f"Υπηρεσία:    {a.service_name}\n"
+            f"Υπάλληλος:  {a.employee_name}\n"
+            f"Ημερομηνία: {a.scheduled_at}\n"
+            f"Διάρκεια:    {a.duration_min} λεπτά\n"
+            f"Κόστος:       {a.price:.2f} €"
+            + (f"\nΣημείωση:    {a.notes}" if a.notes else "")
+        ))
+        self._mod_detail_status_lbl.configure(text=status_text, text_color=status_color)
+
+        for w in self._mod_detail_btns.winfo_children():
+            w.destroy()
+
+        if a.status in ("pending", "confirmed"):
+            ctk.CTkButton(
+                self._mod_detail_btns, text=" Αναπρογραμματισμός", width=210,
+                fg_color=("#2980b9", "#1a6fa0"), hover_color=("#2471a3", "#155f8a"),
+                command=self._go_mod_cal,
+            ).pack(side="left", padx=(0, 12))
+            ctk.CTkButton(
+                self._mod_detail_btns, text="✘ Ακύρωση", width=130,
+                fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+                command=self._go_cancel_confirm,
+            ).pack(side="left")
+        else:
+            ctk.CTkLabel(
+                self._mod_detail_btns,
+                text="Δεν είναι δυνατή η τροποποίηση αυτού του ραντεβού.",
+                text_color="gray",
+            ).pack()
+
+        self._hide_all()
+        self._mod_detail_frame.grid(row=0, column=0, sticky="nsew")
+
+    # ================================================================ UC 2.12 — RESCHEDULE CONFIRM
+    def _build_mod_confirm_frame(self):
+        self._mod_confirm_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._mod_confirm_frame.columnconfigure(0, weight=1)
+        self._mod_confirm_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._mod_confirm_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        ctk.CTkLabel(
+            card, text=" Επιβεβαίωση Αλλαγής Ραντεβού",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(padx=52, pady=(36, 16))
+
+        self._mod_confirm_details = ctk.CTkLabel(
+            card, text="", justify="left",
+            font=ctk.CTkFont(size=13), text_color="gray",
+        )
+        self._mod_confirm_details.pack(padx=52, pady=(0, 16))
+
+        self._mod_confirm_msg = ctk.StringVar()
+        self._mod_confirm_msg_label = ctk.CTkLabel(
+            card, textvariable=self._mod_confirm_msg,
+            font=ctk.CTkFont(size=12), wraplength=360,
+        )
+        self._mod_confirm_msg_label.pack(padx=52, pady=(0, 8))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(pady=(0, 36))
+        ctk.CTkButton(
+            btn_row, text="← Πίσω", width=110,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_mod_cal,
+        ).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            btn_row, text="✓ Επιβεβαίωση Αλλαγής", width=210,
+            command=self._submit_reschedule,
+        ).pack(side="left")
+
+    def _go_mod_confirm(self):
+        a    = self._mod_appt
+        slot = self._mod_sel_slot
+        self._mod_confirm_details.configure(text=(
+            f"Υπηρεσία:    {a.service_name}\n"
+            f"Υπάλληλος:  {a.employee_name}\n"
+            f"Παλαιά ώρα: {a.scheduled_at}\n"
+            f"Νέα ώρα:     {slot['start_iso']}\n"
+            f"Διάρκεια:    {a.duration_min} λεπτά"
+        ))
+        self._mod_confirm_msg.set("")
+        self._hide_all()
+        self._mod_confirm_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _submit_reschedule(self):
+        user = Session.current_user()
+        try:
+            AppointmentController.customer_reschedule_appointment(
+                appt_id=self._mod_appt.id,
+                customer_id=user.id,
+                new_scheduled_at=self._mod_sel_slot["start_iso"],
+            )
+            self._list_msg_var.set("✔ Το ραντεβού αναπρογραμματίστηκε επιτυχώς!")
+            self.after(5000, lambda: self._list_msg_var.set(""))
+            self._go_list()
+        except AppointmentError as e:
+            if "δεν είναι πλέον διαθέσιμη" in str(e):
+                self._go_unavailable(str(e), back_fn=self._go_mod_cal)
+            else:
+                self._mod_confirm_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+                self._mod_confirm_msg.set(str(e))
+
+    # ================================================================ UC 2.12 — CANCEL CONFIRM
+    def _build_cancel_confirm_frame(self):
+        self._cancel_confirm_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._cancel_confirm_frame.columnconfigure(0, weight=1)
+        self._cancel_confirm_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._cancel_confirm_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        ctk.CTkLabel(
+            card, text="✘  Ακύρωση Ραντεβού",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(padx=52, pady=(36, 10))
+
+        self._cancel_confirm_text = ctk.CTkLabel(
+            card, text="", text_color="gray", justify="center",
+        )
+        self._cancel_confirm_text.pack(padx=52, pady=(0, 20))
+
+        self._cancel_msg = ctk.StringVar()
+        self._cancel_msg_label = ctk.CTkLabel(
+            card, textvariable=self._cancel_msg,
+            font=ctk.CTkFont(size=12),
+        )
+        self._cancel_msg_label.pack(padx=52, pady=(0, 8))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(pady=(0, 36))
+        ctk.CTkButton(
+            btn_row, text="Όχι, επιστροφή", width=150,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_mod_detail,
+        ).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            btn_row, text="Ναι, ακύρωση", width=150,
+            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            command=self._execute_cancel,
+        ).pack(side="left")
+
+    def _go_cancel_confirm(self):
+        a = self._mod_appt
+        self._cancel_confirm_text.configure(
+            text=f"Θέλετε σίγουρα να ακυρώσετε το ραντεβού\n"
+                 f"για «{a.service_name}» την {a.scheduled_at};"
+        )
+        self._cancel_msg.set("")
+        self._hide_all()
+        self._cancel_confirm_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _execute_cancel(self):
+        user = Session.current_user()
+        try:
+            AppointmentController.customer_cancel_appointment(
+                appt_id=self._mod_appt.id,
+                customer_id=user.id,
+            )
+            self._list_msg_var.set("✔ Το ραντεβού ακυρώθηκε.")
+            self.after(5000, lambda: self._list_msg_var.set(""))
+            self._go_list()
+        except AppointmentError as e:
+            self._cancel_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+            self._cancel_msg.set(str(e))
