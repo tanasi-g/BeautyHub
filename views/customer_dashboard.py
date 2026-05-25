@@ -7,6 +7,9 @@ from utils.session import Session
 from controllers.review_controller import ReviewController, ReviewError
 from controllers.appointment_controller import AppointmentController, AppointmentError
 from datetime import datetime, timedelta
+from controllers.eshop_controller import EShopController
+from controllers.order_controller import OrderController
+
 
 
 
@@ -26,8 +29,8 @@ class CustomerDashboard(BaseDashboard):
         nav = self._show_page
         self._register_page("home",          _HomePage(self._content))
         self._register_page("salons",        _SalonSearchPage(self._content))
-        self._register_page("eshop",         _PlaceholderPage(self._content, "E-Shop"))
-        self._register_page("cart",          _PlaceholderPage(self._content, "Καλάθι"))
+        self._register_page("eshop",         _EShopStorePage(self._content, nav))
+        self._register_page("cart",          _CartPage(self._content, nav))
         self._register_page("orders",        _PlaceholderPage(self._content, "Παραγγελίες μου"))
         self._register_page("appointments",  _AppointmentsPage(self._content))
         self._register_page("notifications", NotificationsPage(self._content))
@@ -313,11 +316,395 @@ class _SalonSearchPage(ctk.CTkFrame):
         self._profile_frame.grid(row=0, column=0, sticky="nsew")
 
 
+#  E-Shop Store — UC 2.11  
 
 
-# ============================================================
+class _EShopStorePage(ctk.CTkFrame):
+    _LIST_COLS = ["Όνομα", "Περιγραφή", "Τιμή", "Απόθεμα", ""]
+
+    def __init__(self, master, navigate):
+        super().__init__(master, fg_color="transparent")
+        self._navigate  = navigate
+        self._sel_product = None
+        self._qty        = 1
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self._build_list_frame()
+        self._build_detail_frame()
+        self._go_list()
+
+    # state router
+    def _hide_all(self):
+        self._list_frame.grid_remove()
+        self._detail_frame.grid_remove()
+
+    def refresh(self):
+        self._go_list()
+
+    # LIST 
+    def _build_list_frame(self):
+        self._list_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._list_frame.columnconfigure(0, weight=1)
+        self._list_frame.rowconfigure(3, weight=1)
+
+        # header
+        hdr = ctk.CTkFrame(self._list_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 4))
+        hdr.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            hdr, text="🛍 E-Shop — Προϊόντα",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(
+            hdr, text=" Δες Καλάθι", width=140,
+            command=lambda: self._navigate("cart"),
+        ).grid(row=0, column=1, sticky="e")
+
+        # search bar 
+        bar = ctk.CTkFrame(self._list_frame, corner_radius=10)
+        bar.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 6))
+        bar.columnconfigure(1, weight=1)
+        ctk.CTkLabel(bar, text="Αναζήτηση:", anchor="w").grid(
+            row=0, column=0, padx=(16, 8), pady=12,
+        )
+        self._search_entry = ctk.CTkEntry(
+            bar, placeholder_text="Όνομα ή περιγραφή…", height=34,
+        )
+        self._search_entry.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=12)
+        self._search_entry.bind("<Return>", lambda _: self._do_search())
+        ctk.CTkButton(
+            bar, text=" Αναζήτηση", width=130, command=self._do_search,
+        ).grid(row=0, column=2, padx=(0, 6), pady=12)
+        ctk.CTkButton(
+            bar, text="✕ Καθαρισμός", width=130,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._clear_search,
+        ).grid(row=0, column=3, padx=(0, 16), pady=12)
+
+        # feedback line 
+        self._list_toast_var = ctk.StringVar()
+        ctk.CTkLabel(
+            self._list_frame, textvariable=self._list_toast_var,
+            text_color=("#27ae60", "#2ecc71"),
+            font=ctk.CTkFont(size=12), anchor="w",
+        ).grid(row=2, column=0, sticky="w", padx=32)
+
+        # results table
+        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10)
+        self._table.grid(row=3, column=0, sticky="nsew", padx=32, pady=(2, 24))
+        for i in range(len(self._LIST_COLS)):
+            self._table.columnconfigure(i, weight=1)
+
+    def _go_list(self):
+        self._hide_all()
+        self._list_frame.grid(row=0, column=0, sticky="nsew")
+        self._do_search()
+
+    def _do_search(self):
+        keyword  = self._search_entry.get()
+        products = EShopController.search(keyword)  
+        self._render_products(products)
+
+    def _clear_search(self):
+        self._search_entry.delete(0, "end")
+        self._do_search()
+
+    def _render_products(self, products: list):
+        for w in self._table.winfo_children():
+            w.destroy()
+
+        #δεν βρέθηκαν προϊόντα
+        if not products:
+            no_kw = not self._search_entry.get().strip()
+            msg = (
+                "Δεν υπάρχουν διαθέσιμα προϊόντα αυτή τη στιγμή."
+                if no_kw else
+                "Δεν βρέθηκαν προϊόντα για την αναζήτησή σας."
+            )
+            ctk.CTkLabel(
+                self._table, text=msg, text_color="gray",
+            ).grid(row=0, column=0, columnspan=len(self._LIST_COLS), pady=36)
+            return
+
+        for col, h in enumerate(self._LIST_COLS):
+            ctk.CTkLabel(
+                self._table, text=h,
+                font=ctk.CTkFont(weight="bold"), anchor="w",
+            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
+        ctk.CTkFrame(self._table, height=1, fg_color="gray40").grid(
+            row=1, column=0, columnspan=len(self._LIST_COLS), sticky="ew", padx=4,
+        )
+
+        for r_idx, p in enumerate(products, start=2):
+            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            for col, val in enumerate([
+                p.name,
+                (p.description or "—")[:40],
+                f"{p.price:.2f} €",
+                str(p.stock),
+            ]):
+                ctk.CTkLabel(
+                    self._table, text=val, anchor="w",
+                    fg_color=bg, corner_radius=4,
+                ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
+
+            #επιλογή προϊόντος
+            ctk.CTkButton(
+                self._table, text="Λεπτομέρειες →", width=130, height=26,
+                fg_color=("gray70", "gray30"), hover_color=("gray60", "gray40"),
+                font=ctk.CTkFont(size=11),
+                command=lambda prod=p: self._open_detail(prod),
+            ).grid(row=r_idx, column=4, padx=4, pady=2)
+
+    # DETAIL 
+    def _build_detail_frame(self):
+        self._detail_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._detail_frame.columnconfigure(0, weight=1)
+        self._detail_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._detail_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        # header inside card
+        hdr = ctk.CTkFrame(card, fg_color="transparent")
+        hdr.pack(fill="x", padx=40, pady=(28, 4))
+        hdr.columnconfigure(1, weight=1)
+        ctk.CTkButton(
+            hdr, text="← Πίσω", width=90,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_list,
+        ).grid(row=0, column=0, sticky="w")
+        self._detail_title = ctk.CTkLabel(
+            hdr, text="", font=ctk.CTkFont(size=17, weight="bold"),
+        )
+        self._detail_title.grid(row=0, column=1, sticky="w", padx=16)
+        ctk.CTkButton(
+            hdr, text=" Δες Καλάθι", width=130,
+            command=lambda: self._navigate("cart"),
+        ).grid(row=0, column=2, sticky="e")
+
+        # product info
+        self._detail_desc = ctk.CTkLabel(
+            card, text="", justify="left",
+            text_color="gray", wraplength=420, anchor="w",
+        )
+        self._detail_desc.pack(fill="x", padx=40, pady=(4, 0))
+
+        info_row = ctk.CTkFrame(card, fg_color="transparent")
+        info_row.pack(fill="x", padx=40, pady=(10, 0))
+        self._detail_price = ctk.CTkLabel(
+            info_row, text="",
+            font=ctk.CTkFont(size=22, weight="bold"),
+        )
+        self._detail_price.pack(side="left")
+        self._detail_stock = ctk.CTkLabel(
+            info_row, text="",
+            text_color="gray", font=ctk.CTkFont(size=12),
+        )
+        self._detail_stock.pack(side="left", padx=(16, 0))
+
+        # quantity selector 
+        qty_section = ctk.CTkFrame(card, fg_color="transparent")
+        qty_section.pack(pady=(18, 0))
+        ctk.CTkLabel(qty_section, text="Ποσότητα:", font=ctk.CTkFont(size=13)).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            qty_section, text="−", width=34, height=34,
+            fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+            command=self._dec_qty,
+        ).pack(side="left")
+        self._qty_label = ctk.CTkLabel(
+            qty_section, text="1", width=44,
+            font=ctk.CTkFont(size=15, weight="bold"), anchor="center",
+        )
+        self._qty_label.pack(side="left")
+        ctk.CTkButton(
+            qty_section, text="+", width=34, height=34,
+            fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+            command=self._inc_qty,
+        ).pack(side="left")
+
+        self._detail_msg = ctk.StringVar()
+        self._detail_msg_label = ctk.CTkLabel(
+            card, textvariable=self._detail_msg,
+            font=ctk.CTkFont(size=12),
+        )
+        self._detail_msg_label.pack(pady=(10, 0))
+
+        ctk.CTkButton(
+            card, text="+ Προσθήκη στο Καλάθι", width=240, height=40,
+            font=ctk.CTkFont(size=14),
+            command=self._add_to_cart,
+        ).pack(pady=(12, 32))
+
+    def _open_detail(self, product):
+        """εμφάνιση στοιχείων προϊόντος."""
+        self._sel_product = product
+        self._qty         = 1
+        self._detail_title.configure(text=product.name)
+        self._detail_desc.configure(text=product.description or "Δεν υπάρχει περιγραφή.")
+        self._detail_price.configure(text=f"{product.price:.2f} €")
+        self._detail_stock.configure(text=f"Διαθέσιμα: {product.stock} τεμ.")
+        self._qty_label.configure(text="1")
+        self._detail_msg.set("")
+        self._hide_all()
+        self._detail_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _dec_qty(self):
+        if self._qty > 1:
+            self._qty -= 1
+            self._qty_label.configure(text=str(self._qty))
+
+    def _inc_qty(self):
+        if self._qty < self._sel_product.stock:
+            self._qty += 1
+            self._qty_label.configure(text=str(self._qty))
+
+    def _add_to_cart(self):
+        """προσθήκη ποσότητας στο καλάθι."""
+        p = self._sel_product
+        OrderController.add_to_cart(p.id, p.name, p.price, self._qty)
+
+        # ενημέρωση υπάρχοντος καλαθιού 
+        self._list_toast_var.set(
+            f"✔  {self._qty} × «{p.name}» προστέθηκε στο καλάθι."
+        )
+        self.after(3000, lambda: self._list_toast_var.set(""))
+        self._go_list()
+
+
+#  Cart page 
+
+class _CartPage(ctk.CTkFrame):
+    def __init__(self, master, navigate):
+        super().__init__(master, fg_color="transparent")
+        self._navigate = navigate
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self._build_cart_view()
+
+
+    
+    def _hide_all(self):
+        for f in (
+            self._cart_frame,
+        ):
+            f.grid_remove()
+
+    def refresh(self):
+        self._go_cart()
+
+    #  CART VIEW 
+    def _build_cart_view(self):
+        self._cart_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._cart_frame.columnconfigure(0, weight=1)
+        self._cart_frame.rowconfigure(1, weight=1)
+
+        hdr = ctk.CTkFrame(self._cart_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 12))
+        hdr.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            hdr, text=" Καλάθι Αγορών",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+
+        self._cart_table = ctk.CTkScrollableFrame(self._cart_frame, corner_radius=10)
+        self._cart_table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 8))
+        self._cart_table.columnconfigure((0, 1, 2, 3), weight=1)
+
+        self._cart_total_var = ctk.StringVar()
+        ctk.CTkLabel(
+            self._cart_frame, textvariable=self._cart_total_var,
+            font=ctk.CTkFont(size=15, weight="bold"), anchor="e",
+        ).grid(row=2, column=0, sticky="e", padx=40, pady=(0, 8))
+
+        btn_row = ctk.CTkFrame(self._cart_frame, fg_color="transparent")
+        btn_row.grid(row=3, column=0, sticky="ew", padx=32, pady=(0, 24))
+        btn_row.columnconfigure(0, weight=1)
+        ctk.CTkButton(
+            btn_row, text="🗑 Άδειασμα", width=140,
+            fg_color="transparent", border_width=1,
+            text_color=("#e74c3c", "#e74c3c"),
+            hover_color=("gray85", "gray25"),
+            command=self._clear_cart,
+        ).grid(row=0, column=0, sticky="w")
+       
+
+    def _go_cart(self):
+        self._hide_all()
+        self._cart_frame.grid(row=0, column=0, sticky="nsew")
+        self._refresh_cart()
+
+    def _refresh_cart(self):
+        for w in self._cart_table.winfo_children():
+            w.destroy()
+
+        lines = OrderController.get_cart_lines()
+
+        if not lines:
+            ctk.CTkLabel(
+                self._cart_table,
+                text="Το καλάθι είναι άδειο.\nΜεταβείτε στο E-Shop για να επιλέξετε προϊόντα.",
+                text_color="gray", justify="center",
+            ).grid(row=0, column=0, columnspan=4, pady=36)
+            self._cart_total_var.set("")
+            return
+
+        for col, h in enumerate(["Προϊόν", "Τιμή/τεμ.", "Ποσότητα", "Υποσύνολο"]):
+            ctk.CTkLabel(
+                self._cart_table, text=h,
+                font=ctk.CTkFont(weight="bold"), anchor="w",
+            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
+        ctk.CTkFrame(self._cart_table, height=1, fg_color="gray40").grid(
+            row=1, column=0, columnspan=4, sticky="ew", padx=4
+        )
+
+        for r_idx, line in enumerate(lines, start=2):
+            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            ctk.CTkLabel(
+                self._cart_table, text=line.name, anchor="w",
+                fg_color=bg, corner_radius=4,
+            ).grid(row=r_idx, column=0, sticky="ew", padx=4, pady=2)
+            ctk.CTkLabel(
+                self._cart_table, text=f"{line.price:.2f} €", anchor="w",
+                fg_color=bg, corner_radius=4,
+            ).grid(row=r_idx, column=1, sticky="ew", padx=4, pady=2)
+
+            qty_frame = ctk.CTkFrame(self._cart_table, fg_color=bg, corner_radius=4)
+            qty_frame.grid(row=r_idx, column=2, sticky="ew", padx=4, pady=2)
+            ctk.CTkButton(
+                qty_frame, text="−", width=28, height=26,
+                fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+                command=lambda pid=line.product_id, q=line.quantity: self._change_qty(pid, q - 1),
+            ).pack(side="left", padx=(4, 2), pady=2)
+            ctk.CTkLabel(
+                qty_frame, text=str(line.quantity), width=32, anchor="center"
+            ).pack(side="left")
+            ctk.CTkButton(
+                qty_frame, text="+", width=28, height=26,
+                fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+                command=lambda pid=line.product_id, q=line.quantity: self._change_qty(pid, q + 1),
+            ).pack(side="left", padx=(2, 4), pady=2)
+
+            ctk.CTkLabel(
+                self._cart_table, text=f"{line.subtotal:.2f} €", anchor="w",
+                fg_color=bg, corner_radius=4,
+            ).grid(row=r_idx, column=3, sticky="ew", padx=4, pady=2)
+
+        self._cart_total_var.set(f"Σύνολο: {OrderController.cart_total():.2f} €")
+
+    def _change_qty(self, product_id: int, new_qty: int):
+        OrderController.set_quantity(product_id, new_qty)
+        self._refresh_cart()
+
+    def _clear_cart(self):
+        OrderController.clear_cart()
+        self._refresh_cart()
+
+ 
 #  Appointments — UC 2.2  
-# ============================================================
+
 
 _APPT_STATUS_MAP = {
     'pending':   (" Εκκρεμεί",    ("#e67e22", "#d68910")),
