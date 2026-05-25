@@ -5,6 +5,7 @@ from views.notifications_page import NotificationsPage
 from controllers.eshop_controller import EShopController, EShopError
 from pathlib import Path
 from tkinter import filedialog
+from controllers.service_controller import ServiceController, ServiceError
 
 class AdminDashboard(BaseDashboard):
     NAV_ITEMS = [
@@ -22,14 +23,14 @@ class AdminDashboard(BaseDashboard):
         self._register_page("home",          _HomePage(self._content))
         self._register_page("salons",        _PlaceholderPage(self._content, "Κομμωτήρια"))
         self._register_page("users",         _UsersPage(self._content))
-        self._register_page("services",      _PlaceholderPage(self._content, "Υπηρεσίες"))
+        self._register_page("services",      _ServicesPage(self._content))
         self._register_page("eshop",         _EShopPage(self._content))
         self._register_page("appointments",  _PlaceholderPage(self._content, "Ραντεβού"))
         self._register_page("inventory",     _PlaceholderPage(self._content, "Αποθήκη"))
         self._register_page("notifications", NotificationsPage(self._content))
 
 
-# ------------------------------------------------------------------ pages
+# pages
 
 class _HomePage(ctk.CTkFrame):
     _STATS = [
@@ -372,3 +373,176 @@ class _PlaceholderPage(ctk.CTkFrame):
             text_color="gray",
             justify="center",
         ).grid(row=0, column=0)
+
+class _ServicesPage(ctk.CTkFrame):
+    """
+    Λίστα υπηρεσιών + inline φόρμα δημιουργίας.
+    Εναλλάσσεται μεταξύ list-view και form-view.
+    """
+
+    def __init__(self, master):
+        super().__init__(master, fg_color="transparent")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
+        self._build_list_view()
+        self._build_form_view()
+        self._show_list()
+
+    # list
+    def _build_list_view(self):
+        self._list_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._list_frame.columnconfigure(0, weight=1)
+        self._list_frame.rowconfigure(1, weight=1)
+
+        # header row
+        hdr = ctk.CTkFrame(self._list_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 12))
+        hdr.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            hdr, text="Υπηρεσίες",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(
+            hdr, text="+ Νέα Υπηρεσία", width=150,
+            command=self._show_form,
+        ).grid(row=0, column=1, sticky="e")
+
+        # scrollable table
+        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10)
+        self._table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
+        self._table.columnconfigure((0, 1, 2, 3, 4), weight=1)
+
+    def _refresh_table(self):
+        for w in self._table.winfo_children():
+            w.destroy()
+
+        headers = ["#", "Όνομα", "Περιγραφή", "Διάρκεια", "Τιμή"]
+        for col, h in enumerate(headers):
+            ctk.CTkLabel(
+                self._table, text=h,
+                font=ctk.CTkFont(weight="bold"), anchor="w",
+            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
+
+        ctk.CTkFrame(self._table, height=1, fg_color="gray40").grid(
+            row=1, column=0, columnspan=5, sticky="ew", padx=4
+        )
+
+        services = ServiceController.get_all()
+
+        if not services:
+            ctk.CTkLabel(
+                self._table,
+                text="Δεν υπάρχουν υπηρεσίες ακόμα. Πατήστε «+ Νέα Υπηρεσία».",
+                text_color="gray",
+            ).grid(row=2, column=0, columnspan=5, pady=24)
+            return
+
+        for r_idx, svc in enumerate(services, start=2):
+            values = [
+                str(svc.id),
+                svc.name,
+                svc.description or "—",
+                f"{svc.duration_min} λεπτά",
+                f"{svc.price:.2f} €",
+            ]
+            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            for col, val in enumerate(values):
+                ctk.CTkLabel(
+                    self._table, text=val, anchor="w",
+                    fg_color=bg, corner_radius=4,
+                ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
+
+    # form
+    def _build_form_view(self):
+        self._form_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._form_frame.columnconfigure(0, weight=1)
+
+        # header
+        hdr = ctk.CTkFrame(self._form_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 4))
+        hdr.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            hdr, text="Νέα Υπηρεσία",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+
+        # card
+        card = ctk.CTkFrame(self._form_frame, corner_radius=12)
+        card.grid(row=1, column=0, sticky="ew", padx=32, pady=12)
+        card.columnconfigure(1, weight=1)
+
+        fields = [
+            ("Όνομα *",              "_f_name",     False, "π.χ. Κούρεμα γυναικείο"),
+            ("Περιγραφή",            "_f_desc",     False, "Προαιρετική περιγραφή"),
+            ("Διάρκεια (λεπτά) *",   "_f_duration", False, "π.χ. 45"),
+            ("Τιμή (€) *",           "_f_price",    False, "π.χ. 20.00"),
+        ]
+        for row_idx, (label, attr, secret, ph) in enumerate(fields):
+            ctk.CTkLabel(card, text=label, anchor="w").grid(
+                row=row_idx, column=0, sticky="w", padx=(20, 12), pady=(14, 2)
+            )
+            entry = ctk.CTkEntry(card, placeholder_text=ph, show="•" if secret else "", height=36)
+            entry.grid(row=row_idx, column=1, sticky="ew", padx=(0, 20), pady=(14, 2))
+            setattr(self, attr, entry)
+
+        # feedback label
+        self._form_msg = ctk.StringVar()
+        self._form_msg_label = ctk.CTkLabel(
+            card, textvariable=self._form_msg,
+            font=ctk.CTkFont(size=12), wraplength=480,
+        )
+        self._form_msg_label.grid(row=len(fields), column=0, columnspan=2, pady=(8, 4))
+
+        # buttons
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.grid(row=len(fields) + 1, column=0, columnspan=2, pady=(4, 20), padx=20, sticky="e")
+        ctk.CTkButton(
+            btn_row, text="Ακύρωση", width=110,
+            fg_color="transparent",
+            border_width=1,
+            text_color=("gray20", "gray80"),
+            hover_color=("gray85", "gray25"),
+            command=self._cancel_form,
+        ).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(
+            btn_row, text="Αποθήκευση", width=130,
+            command=self._submit_form,
+        ).pack(side="left")
+
+    # navigation
+    def refresh(self):
+        self._show_list()
+
+    def _show_list(self):
+        self._form_frame.grid_remove()
+        self._list_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        self._refresh_table()
+
+    def _show_form(self):
+        self._list_frame.grid_remove()
+        for attr in ("_f_name", "_f_desc", "_f_duration", "_f_price"):
+            getattr(self, attr).delete(0, "end")
+        self._form_msg.set("")
+        self._form_msg_label.configure(text_color=("gray40", "gray60"))
+        self._form_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
+
+    # actions
+    def _cancel_form(self):
+        self._show_list()
+
+    def _submit_form(self):
+        self._form_msg.set("")
+        try:
+            ServiceController.create(
+                name=self._f_name.get(),
+                description=self._f_desc.get(),
+                duration_min=self._f_duration.get(),
+                price=self._f_price.get(),
+            )
+            self._form_msg_label.configure(text_color=("#27ae60", "#2ecc71"))
+            self._form_msg.set("Η υπηρεσία δημιουργήθηκε επιτυχώς!")
+            self.after(1200, self._show_list)
+        except ServiceError as e:
+            self._form_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+            self._form_msg.set(str(e))
+
