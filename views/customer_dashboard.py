@@ -363,7 +363,7 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         self._go_list()
 
-    # ---------------------------------------------------------------- state router
+    # state router
     def _hide_all(self):
         for f in (
             self._list_frame, self._svc_frame, self._emp_frame,
@@ -377,7 +377,7 @@ class _AppointmentsPage(ctk.CTkFrame):
     def refresh(self):
         self._go_list()
 
-    # ================================================================ LIST (existing appointments)
+    #LIST 
     def _build_list_frame(self):
         self._list_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._list_frame.columnconfigure(0, weight=1)
@@ -467,7 +467,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                     command=lambda a=appt: self._go_mod_detail(a),
                 ).pack(side="right")
 
-    # ================================================================ STEP 1 — choose service
+    #STEP 1 
     def _build_svc_frame(self):
         self._svc_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._svc_frame.columnconfigure(0, weight=1)
@@ -538,7 +538,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._sel_service = service
         self._go_emp()
 
-    # ================================================================ 
+    #STEP 2 — choose employee
     def _build_emp_frame(self):
         self._emp_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._emp_frame.columnconfigure(0, weight=1)
@@ -573,7 +573,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         for w in self._emp_cards.winfo_children():
             w.destroy()
 
-        employees = AppointmentController.get_employees()  # includes «any» sentinel first
+        employees = AppointmentController.get_employees()  
 
         for i, emp in enumerate(employees):
             card = ctk.CTkFrame(self._emp_cards, corner_radius=10)
@@ -593,7 +593,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cal_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         self._go_cal()
 
-    # ================================================================ STEP 3 — calendar + slots
+    # STEP 3 — calendar + slots
     def _build_cal_frame(self):
         self._cal_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._cal_frame.columnconfigure(0, weight=1)
@@ -770,7 +770,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             self._mod_sel_slot = slot
             self._go_mod_confirm()       
 
-    # ================================================================ STEP 4 — confirm
+    # STEP 4 — confirm
     def _build_confirm_frame(self):
         self._confirm_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._confirm_frame.columnconfigure(0, weight=1)
@@ -855,7 +855,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                 self._confirm_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
                 self._confirm_msg.set(str(e))
 
-    # ================================================================ ALT FLOW — slot taken
+    # ALT FLOW — slot taken
     def _build_unavailable_frame(self):
         self._unavailable_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._unavailable_frame.columnconfigure(0, weight=1)
@@ -883,7 +883,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._hide_all()
         self._unavailable_frame.grid(row=0, column=0, sticky="nsew")
 
-# ================================================================ UC 2.12 — MODIFICATION DETAIL
+# UC 2.12 — MODIFICATION DETAIL
     def _build_mod_detail_frame(self):
         self._mod_detail_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._mod_detail_frame.columnconfigure(0, weight=1)
@@ -961,7 +961,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._hide_all()
         self._mod_detail_frame.grid(row=0, column=0, sticky="nsew")
 
-    # ================================================================ UC 2.12 — RESCHEDULE CONFIRM
+    # UC 2.12 — RESCHEDULE CONFIRM
     def _build_mod_confirm_frame(self):
         self._mod_confirm_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._mod_confirm_frame.columnconfigure(0, weight=1)
@@ -1033,7 +1033,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                 self._mod_confirm_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
                 self._mod_confirm_msg.set(str(e))
 
-    # ================================================================ UC 2.12 — CANCEL CONFIRM
+    # UC 2.12 — CANCEL CONFIRM
     def _build_cancel_confirm_frame(self):
         self._cancel_confirm_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._cancel_confirm_frame.columnconfigure(0, weight=1)
