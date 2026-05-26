@@ -27,9 +27,14 @@ class SalonRepository:
         return SalonRepository._to_model(row) if row else None
 
     @staticmethod
-    def search(keyword: str, service_id: int | None = None) -> list[Salon]:
+    def search(
+        name_kw: str = "",
+        city_kw: str = "",
+        service_id: int | None = None,
+    ) -> list[Salon]:
         conn = Database.get_connection()
-        kw = f"%{keyword.strip().lower()}%" if keyword.strip() else "%"
+        nkw = f"%{name_kw.strip().casefold()}%" if name_kw.strip() else "%"
+        ckw = f"%{city_kw.strip().casefold()}%" if city_kw.strip() else "%"
 
         if service_id is not None:
             rows = conn.execute(
@@ -39,10 +44,11 @@ class SalonRepository:
                   JOIN salon_services ss ON ss.salon_id = s.id
                  WHERE s.is_active = 1
                    AND ss.service_id = ?
-                   AND (LOWER(s.name) LIKE ? OR LOWER(s.city) LIKE ? OR LOWER(s.address) LIKE ?)
+                   AND casefold(s.name) LIKE ?
+                   AND casefold(s.city) LIKE ?
                  ORDER BY s.name
                 """,
-                (service_id, kw, kw, kw),
+                (service_id, nkw, ckw),
             ).fetchall()
         else:
             rows = conn.execute(
@@ -50,10 +56,11 @@ class SalonRepository:
                 SELECT id, name, address, city, phone, email, is_active
                   FROM salons
                  WHERE is_active = 1
-                   AND (LOWER(name) LIKE ? OR LOWER(city) LIKE ? OR LOWER(address) LIKE ?)
+                   AND casefold(name) LIKE ?
+                   AND casefold(city) LIKE ?
                  ORDER BY name
                 """,
-                (kw, kw, kw),
+                (nkw, ckw),
             ).fetchall()
 
         return [SalonRepository._to_model(r) for r in rows]

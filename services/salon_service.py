@@ -16,8 +16,12 @@ class SalonService:
         return SalonRepository.get_all()
 
     @staticmethod
-    def search(keyword: str, service_id: int | None = None) -> list[Salon]:
-        return SalonRepository.search(keyword, service_id)
+    def search(
+        name_kw: str = "",
+        city_kw: str = "",
+        service_id: int | None = None,
+    ) -> list[Salon]:
+        return SalonRepository.search(name_kw, city_kw, service_id)
 
     @staticmethod
     def create(name: str, address: str, city: str, phone: str, email: str) -> Salon:

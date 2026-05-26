@@ -23,15 +23,23 @@ class CustomerDashboard(BaseDashboard):
         ("Ειδοποιήσεις",     "notifications"),
     ]
 
-    def _build_pages(self):
+def _build_pages(self):
         nav = self._show_page
+        appts_page = _AppointmentsPage(self._content)
+
+        def _start_booking():
+            nav("appointments")
+            appts_page._go_svc()
+
         self._register_page("home",          _HomePage(self._content))
-        self._register_page("salons",        _SalonSearchPage(self._content))
+        self._register_page("salons",        _SalonSearchPage(self._content, _start_booking))
         self._register_page("eshop",         _EShopStorePage(self._content, nav))
         self._register_page("cart",          _CartPage(self._content, nav))
         self._register_page("orders",        _OrderHistoryPage(self._content))
-        self._register_page("appointments",  _AppointmentsPage(self._content))
+        self._register_page("appointments",  appts_page)
         self._register_page("notifications", NotificationsPage(self._content))
+
+
 
 class _HomePage(ctk.CTkFrame):
     def __init__(self, master):
@@ -74,14 +82,15 @@ class _SalonSearchPage(ctk.CTkFrame):
     _SVC_COLS = ["Υπηρεσία", "Διάρκεια", "Τιμή"]
     _ALL_SVC  = "Όλες οι υπηρεσίες"
 
-    def __init__(self, master):
-        super().__init__(master, fg_color="transparent")
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        self._services_map: dict[str, int] = {}
-        self._build_search_view()
-        self._build_profile_view()
-        self._show_search()
+    def __init__(self, master, start_booking=None):
+            super().__init__(master, fg_color="transparent")
+            self._start_booking = start_booking
+            self.columnconfigure(0, weight=1)
+            self.rowconfigure(0, weight=1)
+            self._services_map: dict[str, int] = {}
+            self._build_search_view()
+            self._build_profile_view()
+            self._show_search()
 
     #  lifecycle
     def refresh(self):
@@ -135,6 +144,53 @@ class _SalonSearchPage(ctk.CTkFrame):
             command=self._clear_filters,
         ).grid(row=0, column=5, padx=(0, 16), pady=14)
 
+
+
+         # filter bar (step 1)
+        bar = ctk.CTkFrame(self._search_frame, corner_radius=10)
+        bar.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 12))
+        bar.columnconfigure(1, weight=2)
+        bar.columnconfigure(3, weight=1)
+
+        ctk.CTkLabel(bar, text="Όνομα:", anchor="w").grid(
+            row=0, column=0, padx=(16, 8), pady=14,
+        )
+        self._name_entry = ctk.CTkEntry(
+            bar, placeholder_text="Όνομα κομμωτηρίου…", height=36,
+        )
+        self._name_entry.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=14)
+        self._name_entry.bind("<Return>", lambda _: self._do_search())
+
+        ctk.CTkLabel(bar, text="Περιοχή:", anchor="w").grid(
+            row=0, column=2, padx=(0, 8), pady=14,
+        )
+        self._city_entry = ctk.CTkEntry(
+            bar, placeholder_text="Πόλη / περιοχή…", height=36, width=160,
+        )
+        self._city_entry.grid(row=0, column=3, sticky="ew", padx=(0, 12), pady=14)
+        self._city_entry.bind("<Return>", lambda _: self._do_search())
+
+        ctk.CTkLabel(bar, text="Υπηρεσία:", anchor="w").grid(
+            row=0, column=4, padx=(0, 8), pady=14,
+        )
+        self._svc_combo = ctk.CTkComboBox(
+            bar, values=[self._ALL_SVC], width=190, state="readonly",
+        )
+        self._svc_combo.grid(row=0, column=5, padx=(0, 12), pady=14)
+        self._svc_combo.set(self._ALL_SVC)
+
+        ctk.CTkButton(
+            bar, text="🔍 Αναζήτηση", width=130,
+            command=self._do_search,
+        ).grid(row=0, column=6, padx=(0, 8), pady=14)
+        ctk.CTkButton(
+            bar, text="✕ Καθαρισμός", width=130,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._clear_filters,
+        ).grid(row=0, column=7, padx=(0, 16), pady=14)
+
+
         # results table 
         self._res_table = ctk.CTkScrollableFrame(self._search_frame, corner_radius=10)
         self._res_table.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
@@ -146,6 +202,23 @@ class _SalonSearchPage(ctk.CTkFrame):
         self._services_map = {s.name: s.id for s in services}
         self._svc_combo.configure(values=[self._ALL_SVC] + list(self._services_map.keys()))
         self._svc_combo.set(self._ALL_SVC)
+
+
+    def _do_search(self):
+        #Βήμα 2 — εκτέλεση αναζήτησης με τα τρέχοντα κριτήρια.
+            name_kw    = self._name_entry.get()
+            city_kw    = self._city_entry.get()
+            svc_name   = self._svc_combo.get()
+            service_id = self._services_map.get(svc_name) if svc_name != self._ALL_SVC else None
+            results    = SalonController.search(name_kw, city_kw, service_id)
+            self._render_results(results)
+
+    def _clear_filters(self):
+        """Εναλλακτική ροή 1 — καθαρισμός φίλτρων, επιστροφή στο βήμα 2."""
+        self._name_entry.delete(0, "end")
+        self._city_entry.delete(0, "end")
+        self._svc_combo.set(self._ALL_SVC)
+        self._do_search()
 
     def _do_search(self):
         """Βήμα 2 — εκτέλεση αναζήτησης με τα τρέχοντα κριτήρια."""
@@ -233,9 +306,10 @@ class _SalonSearchPage(ctk.CTkFrame):
         self._info_card.grid(row=1, column=0, sticky="ew", padx=32, pady=(8, 12))
         self._info_card.columnconfigure((0, 1, 2, 3), weight=1)
 
-        # services section
+
+      # services section
         svc_wrap = ctk.CTkFrame(self._profile_frame, fg_color="transparent")
-        svc_wrap.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
+        svc_wrap.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 16))
         svc_wrap.columnconfigure(0, weight=1)
         svc_wrap.rowconfigure(1, weight=1)
         ctk.CTkLabel(
@@ -247,8 +321,23 @@ class _SalonSearchPage(ctk.CTkFrame):
         for i in range(len(self._SVC_COLS)):
             self._svc_table.columnconfigure(i, weight=1)
 
+        # κουμπί κράτησης (κάτω από τις υπηρεσίες)
+        book_bar = ctk.CTkFrame(self._profile_frame, fg_color="transparent")
+        book_bar.grid(row=3, column=0, sticky="ew", padx=32, pady=(0, 24))
+        book_bar.columnconfigure(0, weight=1)
+        ctk.CTkButton(
+            book_bar,
+            text="📅  Κράτηση / Νέο Ραντεβού",
+            width=240, height=40,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._book_appointment,
+        ).grid(row=0, column=0, sticky="e")
+
+
+
+
     def _open_profile(self, salon):
-        """Βήμα 5 — ανάκτηση και εμφάνιση προφίλ κομμωτηρίου."""
+        #"""Βήμα 5 — ανάκτηση και εμφάνιση προφίλ κομμωτηρίου."""
         self._profile_title.configure(text=salon.name)
 
         # info card fields
@@ -312,6 +401,10 @@ class _SalonSearchPage(ctk.CTkFrame):
     def _show_profile(self):
         self._search_frame.grid_remove()
         self._profile_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _book_appointment(self):
+        if self._start_booking:
+         self._start_booking()
 
 
 #  E-Shop Store — UC 2.11  
@@ -1397,7 +1490,7 @@ class _AppointmentsPage(ctk.CTkFrame):
     def refresh(self):
         self._go_list()
 
-    #LIST 
+       #  LIST (existing appointments)
     def _build_list_frame(self):
         self._list_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._list_frame.columnconfigure(0, weight=1)
@@ -1405,15 +1498,13 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         hdr = ctk.CTkFrame(self._list_frame, fg_color="transparent")
         hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 8))
-        hdr.columnconfigure(0, weight=1)
         ctk.CTkLabel(
             hdr, text=" Ραντεβού μου",
             font=ctk.CTkFont(size=20, weight="bold"),
-        ).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(
-            hdr, text="+ Νέο Ραντεβού", width=150,
-            command=self._go_svc,
-        ).grid(row=0, column=1, sticky="e")
+        ).pack(side="left")
+
+
+
 
         self._list_msg_var = ctk.StringVar()
         ctk.CTkLabel(
@@ -1440,7 +1531,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         if not appts:
             ctk.CTkLabel(
                 self._list_container,
-                text="Δεν έχετε ραντεβού ακόμα.\nΠατήστε «+ Νέο Ραντεβού» για να κλείσετε.",
+                text="Δεν έχετε ραντεβού ακόμα.\nΜεταβείτε στα Κομμωτήρια για να κλείσετε ραντεβού.",
                 text_color="gray", justify="center",
             ).grid(row=0, column=0, pady=48)
             return

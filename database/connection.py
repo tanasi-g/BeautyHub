@@ -20,6 +20,11 @@ class Database:
             cls._conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
             cls._conn.row_factory = sqlite3.Row
             cls._conn.execute("PRAGMA foreign_keys = ON")
+
+            cls._conn.create_function(
+                "casefold", 1,
+                lambda s: s.casefold() if isinstance(s, str) else (s or ""),
+            )
         return cls._conn
 
     @classmethod
