@@ -580,13 +580,27 @@ class _CartPage(ctk.CTkFrame):
         self._navigate = navigate
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
+        self._pay_card_holder = ""
+        self._pay_card_number = ""
+        self._pay_card_expiry = ""
+        self._pay_txn_id      = ""
+        self._last_order_id   = None
         self._build_cart_view()
+        self._build_summary_view()
+        self._build_cancel_confirm_view()
+        self._build_insufficient_view()
+        self._build_pay_form_frame()
+        self._build_pay_review_frame()
+        self._build_pay_result_frame()
+
 
 
     
     def _hide_all(self):
         for f in (
-            self._cart_frame,
+            self._cart_frame, self._summary_frame,
+            self._cancel_frame, self._insufficient_frame,
+            self._pay_form_frame, self._pay_review_frame, self._pay_result_frame,
         ):
             f.grid_remove()
 
@@ -627,7 +641,11 @@ class _CartPage(ctk.CTkFrame):
             hover_color=("gray85", "gray25"),
             command=self._clear_cart,
         ).grid(row=0, column=0, sticky="w")
-       
+        self._proceed_btn = ctk.CTkButton(
+            btn_row, text="Προχώρηση →", width=160,
+            command=self._go_summary,
+        )
+        self._proceed_btn.grid(row=0, column=1, sticky="e")
 
     def _go_cart(self):
         self._hide_all()
@@ -647,8 +665,9 @@ class _CartPage(ctk.CTkFrame):
                 text_color="gray", justify="center",
             ).grid(row=0, column=0, columnspan=4, pady=36)
             self._cart_total_var.set("")
+            self._proceed_btn.configure(state="disabled")
             return
-
+        self._proceed_btn.configure(state="normal")
         for col, h in enumerate(["Προϊόν", "Τιμή/τεμ.", "Ποσότητα", "Υποσύνολο"]):
             ctk.CTkLabel(
                 self._cart_table, text=h,
@@ -699,6 +718,441 @@ class _CartPage(ctk.CTkFrame):
     def _clear_cart(self):
         OrderController.clear_cart()
         self._refresh_cart()
+
+    def _build_summary_view(self):
+        self._summary_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._summary_frame.columnconfigure(0, weight=1)
+        self._summary_frame.rowconfigure(1, weight=1)
+
+        hdr = ctk.CTkFrame(self._summary_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 12))
+        hdr.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            hdr, text="📋 Σύνοψη Παραγγελίας",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+
+        self._summary_table = ctk.CTkScrollableFrame(self._summary_frame, corner_radius=10)
+        self._summary_table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 8))
+        self._summary_table.columnconfigure((0, 1, 2, 3), weight=1)
+
+        self._summary_total_var = ctk.StringVar()
+        ctk.CTkLabel(
+            self._summary_frame, textvariable=self._summary_total_var,
+            font=ctk.CTkFont(size=16, weight="bold"), anchor="e",
+        ).grid(row=2, column=0, sticky="e", padx=40, pady=(0, 8))
+
+        btn_row = ctk.CTkFrame(self._summary_frame, fg_color="transparent")
+        btn_row.grid(row=3, column=0, sticky="ew", padx=32, pady=(0, 24))
+        btn_row.columnconfigure(0, weight=1)
+        ctk.CTkButton(
+            btn_row, text="← Ακύρωση", width=130,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"),
+            hover_color=("gray85", "gray25"),
+            command=self._go_cancel_confirm,
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(
+            btn_row, text="💳 Πληρωμή →", width=160,
+            command=self._confirm_order,
+        ).grid(row=0, column=1, sticky="e")
+
+    def _go_summary(self):
+        self._hide_all()
+        self._summary_frame.grid(row=0, column=0, sticky="nsew")
+        self._refresh_summary()
+
+    def _refresh_summary(self):
+        for w in self._summary_table.winfo_children():
+            w.destroy()
+
+        for col, h in enumerate(["Προϊόν", "Τιμή/τεμ.", "Ποσότητα", "Υποσύνολο"]):
+            ctk.CTkLabel(
+                self._summary_table, text=h,
+                font=ctk.CTkFont(weight="bold"), anchor="w",
+            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
+        ctk.CTkFrame(self._summary_table, height=1, fg_color="gray40").grid(
+            row=1, column=0, columnspan=4, sticky="ew", padx=4
+        )
+
+        for r_idx, line in enumerate(OrderController.get_cart_lines(), start=2):
+            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            for col, val in enumerate([
+                line.name, f"{line.price:.2f} €", str(line.quantity), f"{line.subtotal:.2f} €"
+            ]):
+                ctk.CTkLabel(
+                    self._summary_table, text=val, anchor="w",
+                    fg_color=bg, corner_radius=4,
+                ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
+
+        self._summary_total_var.set(f"Σύνολο: {OrderController.cart_total():.2f} €")
+
+    def _confirm_order(self):
+        problems = OrderController.check_stock()
+        if problems:
+            self._go_insufficient(problems)
+        else:
+            self._go_pay_form()
+
+    # ================================================================ CANCEL CONFIRM VIEW (alt flow 1)
+    def _build_cancel_confirm_view(self):
+        self._cancel_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._cancel_frame.columnconfigure(0, weight=1)
+        self._cancel_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._cancel_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+        ctk.CTkLabel(
+            card, text="❌  Ακύρωση Παραγγελίας",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).pack(padx=52, pady=(36, 10))
+        ctk.CTkLabel(
+            card,
+            text="Είστε σίγουροι ότι θέλετε να ακυρώσετε;\nΤο καλάθι θα παραμείνει αναλλοίωτο.",
+            text_color="gray", justify="center",
+        ).pack(padx=52, pady=(0, 28))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(pady=(0, 36))
+        ctk.CTkButton(
+            btn_row, text="Όχι, επιστροφή", width=160,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"),
+            hover_color=("gray85", "gray25"),
+            command=self._go_summary,
+        ).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            btn_row, text="Ναι, ακύρωση", width=160,
+            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            command=self._go_cart,
+        ).pack(side="left")
+
+    def _go_cancel_confirm(self):
+        self._hide_all()
+        self._cancel_frame.grid(row=0, column=0, sticky="nsew")
+
+    # ================================================================ INSUFFICIENT STOCK VIEW (alt flow 2)
+    def _build_insufficient_view(self):
+        self._insufficient_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._insufficient_frame.columnconfigure(0, weight=1)
+        self._insufficient_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._insufficient_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+        ctk.CTkLabel(
+            card, text="⚠  Μη Επαρκές Απόθεμα",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).pack(padx=52, pady=(36, 8))
+        ctk.CTkLabel(
+            card,
+            text="Τα παρακάτω προϊόντα δεν έχουν επαρκές απόθεμα:",
+            text_color="gray",
+        ).pack(padx=52, pady=(0, 12))
+
+        self._insuf_items_frame = ctk.CTkFrame(
+            card, fg_color=("gray88", "gray22"), corner_radius=8
+        )
+        self._insuf_items_frame.pack(padx=52, pady=(0, 24), fill="x")
+
+        ctk.CTkButton(
+            card, text="← Επιστροφή στο Καλάθι", width=220,
+            command=self._go_cart,
+        ).pack(pady=(0, 36))
+
+    def _go_insufficient(self, problems: list[str]):
+        for w in self._insuf_items_frame.winfo_children():
+            w.destroy()
+        for problem in problems:
+            ctk.CTkLabel(
+                self._insuf_items_frame, text=f"• {problem}",
+                text_color=("#e74c3c", "#e74c3c"), anchor="w",
+            ).pack(fill="x", padx=16, pady=4)
+        self._hide_all()
+        self._insufficient_frame.grid(row=0, column=0, sticky="nsew")
+
+    # ================================================================ UC 2.5 — PAY FORM (steps 2–4 + alt flow 1)
+    def _build_pay_form_frame(self):
+        self._pay_form_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._pay_form_frame.columnconfigure(0, weight=1)
+        self._pay_form_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._pay_form_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        # secure header (step 2 — ασφαλές περιβάλλον)
+        ctk.CTkLabel(
+            card, text="🔒  Ασφαλής Πληρωμή — Στοιχεία Κάρτας",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(padx=52, pady=(32, 4))
+
+        self._pay_form_total_var = ctk.StringVar()
+        ctk.CTkLabel(
+            card, textvariable=self._pay_form_total_var,
+            font=ctk.CTkFont(size=28, weight="bold"),
+        ).pack(padx=52, pady=(0, 18))
+
+        # helper: labelled field
+        def _field(parent, label, placeholder, show=""):
+            ctk.CTkLabel(parent, text=label, anchor="w").pack(
+                fill="x", padx=52, pady=(6, 0)
+            )
+            e = ctk.CTkEntry(
+                parent, width=340,
+                placeholder_text=placeholder,
+                show=show,
+            )
+            e.pack(padx=52)
+            return e
+
+        self._entry_holder = _field(card, "Κάτοχος κάρτας *",   "Ονοματεπώνυμο")
+        self._entry_number = _field(card, "Αριθμός κάρτας *",   "1234 5678 9012 3456")
+
+        # expiry + CVV side-by-side
+        row2 = ctk.CTkFrame(card, fg_color="transparent")
+        row2.pack(padx=52, fill="x", pady=(6, 0))
+
+        exp_col = ctk.CTkFrame(row2, fg_color="transparent")
+        exp_col.pack(side="left", expand=True, fill="x", padx=(0, 8))
+        ctk.CTkLabel(exp_col, text="Ημ. λήξης *", anchor="w").pack(anchor="w")
+        self._entry_expiry = ctk.CTkEntry(exp_col, placeholder_text="ΜΜ/ΕΕ")
+        self._entry_expiry.pack(fill="x")
+
+        cvv_col = ctk.CTkFrame(row2, fg_color="transparent")
+        cvv_col.pack(side="left", expand=True, fill="x")
+        ctk.CTkLabel(cvv_col, text="CVV *", anchor="w").pack(anchor="w")
+        self._entry_cvv = ctk.CTkEntry(cvv_col, placeholder_text="123", show="*")
+        self._entry_cvv.pack(fill="x")
+
+        # error label (alt flow 1)
+        self._pay_form_error = ctk.StringVar()
+        ctk.CTkLabel(
+            card, textvariable=self._pay_form_error,
+            text_color=("#e74c3c", "#e74c3c"),
+            font=ctk.CTkFont(size=12), wraplength=340,
+        ).pack(padx=52, pady=(10, 0))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(pady=(10, 32))
+        ctk.CTkButton(
+            btn_row, text="← Πίσω", width=110,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_summary,
+        ).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            btn_row, text="Συνέχεια →", width=160,
+            command=self._validate_and_advance,
+        ).pack(side="left")
+
+    def _go_pay_form(self):
+        """Step 2 — redirect to secure form; reset all fields."""
+        self._pay_form_total_var.set(f"{OrderController.cart_total():.2f} €")
+        self._pay_form_error.set("")
+        for e in (self._entry_holder, self._entry_number,
+                  self._entry_expiry, self._entry_cvv):
+            e.delete(0, "end")
+            e.configure(border_color=("gray60", "gray40"))
+        self._hide_all()
+        self._pay_form_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _validate_and_advance(self):
+        """Steps 4–5: validate fields; highlight errors or advance to review."""
+        name = self._entry_holder.get().strip()
+        num  = self._entry_number.get().replace(" ", "").replace("-", "")
+        exp  = self._entry_expiry.get().strip()
+        cvv  = self._entry_cvv.get().strip()
+
+        # reset highlights
+        _ok  = ("gray60", "gray40")
+        _err = ("#e74c3c", "#e74c3c")
+        for e in (self._entry_holder, self._entry_number,
+                  self._entry_expiry, self._entry_cvv):
+            e.configure(border_color=_ok)
+
+        errors: list[str] = []
+
+        if not name:
+            self._entry_holder.configure(border_color=_err)
+            errors.append("Κάτοχος κάρτας")
+
+        if not num.isdigit() or len(num) != 16:
+            self._entry_number.configure(border_color=_err)
+            errors.append("Αριθμός κάρτας (16 ψηφία)")
+
+        exp_ok = False
+        parts = exp.split("/")
+        if (len(parts) == 2
+                and len(parts[0]) == 2 and parts[0].isdigit()
+                and len(parts[1]) == 2 and parts[1].isdigit()):
+            m, y = int(parts[0]), int(parts[1]) + 2000
+            today = datetime.today()
+            if 1 <= m <= 12 and (
+                y > today.year or (y == today.year and m >= today.month)
+            ):
+                exp_ok = True
+        if not exp_ok:
+            self._entry_expiry.configure(border_color=_err)
+            errors.append("Ημερομηνία λήξης (ΜΜ/ΕΕ π.χ. 12/27)")
+
+        if not cvv.isdigit() or len(cvv) not in (3, 4):
+            self._entry_cvv.configure(border_color=_err)
+            errors.append("CVV (3 ψηφία)")
+
+        if errors:
+            # alt flow 1 — επισήμανση κενών/λανθασμένων πεδίων
+            self._pay_form_error.set("Ελέγξτε: " + ",  ".join(errors) + ".")
+            return
+
+        # all valid — save and go to review (step 5)
+        self._pay_card_holder = name
+        self._pay_card_number = num
+        self._pay_card_expiry = exp
+        self._pay_form_error.set("")
+        self._go_pay_review()
+
+    # ================================================================ UC 2.5 — PAY REVIEW (steps 5–6 + alt flow 2)
+    def _build_pay_review_frame(self):
+        self._pay_review_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._pay_review_frame.columnconfigure(0, weight=1)
+        self._pay_review_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._pay_review_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        ctk.CTkLabel(
+            card, text="📋  Επιβεβαίωση Πληρωμής",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(padx=52, pady=(36, 16))
+
+        self._review_details = ctk.CTkLabel(
+            card, text="", justify="left",
+            font=ctk.CTkFont(size=13), text_color="gray",
+        )
+        self._review_details.pack(padx=52, pady=(0, 8))
+
+        self._review_total_var = ctk.StringVar()
+        ctk.CTkLabel(
+            card, textvariable=self._review_total_var,
+            font=ctk.CTkFont(size=22, weight="bold"),
+        ).pack(padx=52, pady=(0, 24))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.pack(pady=(0, 36))
+        ctk.CTkButton(
+            btn_row, text="← Ακύρωση", width=130,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._go_summary,          # alt flow 2 — back to summary
+        ).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            btn_row, text="✓  Πληρωμή", width=160,
+            command=self._simulate_payment,    # step 6 — confirm
+        ).pack(side="left")
+
+    def _go_pay_review(self):
+        """Step 5 — show masked card summary before final confirm."""
+        masked = "**** **** **** " + self._pay_card_number[-4:]
+        self._review_details.configure(text=(
+            f"Κάτοχος:  {self._pay_card_holder}\n"
+            f"Κάρτα:    {masked}\n"
+            f"Λήξη:      {self._pay_card_expiry}"
+        ))
+        self._review_total_var.set(f"{OrderController.cart_total():.2f} €")
+        self._hide_all()
+        self._pay_review_frame.grid(row=0, column=0, sticky="nsew")
+
+    def _simulate_payment(self):
+        """Steps 7–8: simulate payment gateway; create order on approval."""
+        # Simulation rule: card starting with "0000" → decline (useful for testing)
+        if self._pay_card_number.startswith("0000"):
+            self._go_pay_result(
+                approved=False,
+                reason="Η κάρτα απορρίφθηκε από τον πάροχο πληρωμών.\n"
+                        "Ελέγξτε τα στοιχεία ή χρησιμοποιήστε άλλη κάρτα.",
+            )
+            return
+
+        user = Session.current_user()
+        try:
+            order = OrderController.create_order(user.id, payment_method="card")
+            self._last_order_id = order.id
+            self._pay_txn_id = datetime.now().strftime("TXN-%Y%m%d%H%M%S")
+            self._go_pay_result(approved=True)
+        except OrderError as e:
+            self._go_pay_result(approved=False, reason=str(e))
+
+    # ================================================================ UC 2.5 — PAY RESULT (step 8 + alt flow 3)
+    def _build_pay_result_frame(self):
+        self._pay_result_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._pay_result_frame.columnconfigure(0, weight=1)
+        self._pay_result_frame.rowconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(self._pay_result_frame, corner_radius=16)
+        card.grid(row=0, column=0)
+
+        self._result_icon = ctk.CTkLabel(card, text="",
+                                         font=ctk.CTkFont(size=44))
+        self._result_icon.pack(padx=52, pady=(36, 6))
+
+        self._result_title = ctk.CTkLabel(card, text="",
+                                          font=ctk.CTkFont(size=18, weight="bold"))
+        self._result_title.pack(padx=52, pady=(0, 10))
+
+        self._result_details = ctk.CTkLabel(
+            card, text="", justify="center",
+            font=ctk.CTkFont(size=13), text_color="gray", wraplength=360,
+        )
+        self._result_details.pack(padx=52, pady=(0, 24))
+
+        # button row rebuilt dynamically per result
+        self._result_btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        self._result_btn_row.pack(pady=(0, 36))
+
+    def _go_pay_result(self, *, approved: bool, reason: str = ""):
+        """Step 8 / alt flow 3 — show receipt or decline message."""
+        for w in self._result_btn_row.winfo_children():
+            w.destroy()
+
+        if approved:
+            # step 8 — αποδεικτικό συναλλαγής
+            self._result_icon.configure(
+                text="✔", text_color=("#27ae60", "#2ecc71"))
+            self._result_title.configure(
+                text="Η πληρωμή εγκρίθηκε!",
+                text_color=("#27ae60", "#2ecc71"))
+            self._result_details.configure(
+                text=f"Κωδικός συναλλαγής: {self._pay_txn_id}\n"
+                     f"Παραγγελία #{self._last_order_id} καταχωρήθηκε επιτυχώς.")
+            ctk.CTkButton(
+                self._result_btn_row,
+                text="📦 Δες τις Παραγγελίες", width=230,
+                command=lambda: self._navigate("orders"),
+            ).pack()
+        else:
+            # alt flow 3 — απόρριψη συναλλαγής
+            msg = reason or ("Η συναλλαγή απορρίφθηκε.\n"
+                             "Ελέγξτε τα στοιχεία της κάρτας σας.")
+            self._result_icon.configure(
+                text="✘", text_color=("#e74c3c", "#e74c3c"))
+            self._result_title.configure(
+                text="Η πληρωμή απορρίφθηκε",
+                text_color=("#e74c3c", "#e74c3c"))
+            self._result_details.configure(text=msg)
+            ctk.CTkButton(
+                self._result_btn_row,
+                text="← Δοκιμάστε ξανά", width=180,
+                command=self._go_pay_form,
+            ).pack(side="left", padx=(0, 12))
+            ctk.CTkButton(
+                self._result_btn_row,
+                text="Ακύρωση", width=130,
+                fg_color="transparent", border_width=1,
+                text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+                command=self._go_cart,
+            ).pack(side="left")
+
+        self._hide_all()
+        self._pay_result_frame.grid(row=0, column=0, sticky="nsew")
 
  
 
