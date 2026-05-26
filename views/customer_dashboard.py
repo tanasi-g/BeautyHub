@@ -1,4 +1,6 @@
 import customtkinter as ctk
+from services.errors import OrderError
+from services.errors import RefundError
 from views.base_dashboard import BaseDashboard
 from views.notifications_page import NotificationsPage
 from controllers.service_controller import ServiceController
@@ -9,10 +11,6 @@ from controllers.appointment_controller import AppointmentController, Appointmen
 from datetime import datetime, timedelta
 from controllers.eshop_controller import EShopController
 from controllers.order_controller import OrderController
-
-
-
-
 
 class CustomerDashboard(BaseDashboard):
     NAV_ITEMS = [
@@ -31,7 +29,7 @@ class CustomerDashboard(BaseDashboard):
         self._register_page("salons",        _SalonSearchPage(self._content))
         self._register_page("eshop",         _EShopStorePage(self._content, nav))
         self._register_page("cart",          _CartPage(self._content, nav))
-        self._register_page("orders",        _PlaceholderPage(self._content, "Παραγγελίες μου"))
+        self._register_page("orders",        _OrderHistoryPage(self._content))
         self._register_page("appointments",  _AppointmentsPage(self._content))
         self._register_page("notifications", NotificationsPage(self._content))
 
@@ -703,6 +701,177 @@ class _CartPage(ctk.CTkFrame):
         self._refresh_cart()
 
  
+
+#  Order History
+
+_STATUS_MAP = {
+    'pending':   ("Εκκρεμεί",      ("#e67e22", "#d68910")),
+    'cancelled': ("✘ Ακυρωμένη",      ("#e74c3c", "#922b21")),
+    'completed': ("✔ Ολοκληρωμένη",   ("#27ae60", "#2ecc71")),
+}
+
+
+class _OrderHistoryPage(ctk.CTkFrame):
+    def __init__(self, master):
+        super().__init__(master, fg_color="transparent")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
+        self._build()
+
+    def _build(self):
+        hdr = ctk.CTkFrame(self, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 4))
+        ctk.CTkLabel(
+            hdr, text="Ιστορικό Παραγγελιών",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).pack(side="left")
+
+        self._msg_var = ctk.StringVar()
+        self._msg_label = ctk.CTkLabel(
+            self, textvariable=self._msg_var,
+            font=ctk.CTkFont(size=12), anchor="w",
+        )
+        self._msg_label.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 4))
+
+        self._container = ctk.CTkScrollableFrame(self, corner_radius=10)
+        self._container.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
+        self._container.columnconfigure(0, weight=1)
+
+    def refresh(self):
+        self._load_orders()
+
+    def _load_orders(self):
+        for w in self._container.winfo_children():
+            w.destroy()
+
+        user = Session.current_user()
+        orders = OrderController.get_orders(user.id)
+
+        if not orders:
+            ctk.CTkLabel(
+                self._container,
+                text="Δεν έχετε παραγγελίες ακόμα.",
+                text_color="gray",
+            ).grid(row=0, column=0, pady=48)
+            return
+
+        for i, order in enumerate(orders):
+            card = ctk.CTkFrame(self._container, corner_radius=10)
+            card.grid(row=i, column=0, sticky="ew", padx=8, pady=6)
+            card.columnconfigure(0, weight=1)
+
+            # header: order id | date | status badge
+            top = ctk.CTkFrame(card, fg_color="transparent")
+            top.pack(fill="x", padx=16, pady=(12, 6))
+            ctk.CTkLabel(
+                top, text=f"Παραγγελία #{order.id}",
+                font=ctk.CTkFont(size=13, weight="bold"),
+            ).pack(side="left")
+
+            status_text, status_color = _STATUS_MAP.get(
+                order.status, (order.status, ("gray", "gray"))
+            )
+            ctk.CTkLabel(
+                top, text=status_text, text_color=status_color,
+                font=ctk.CTkFont(size=11, weight="bold"),
+            ).pack(side="right", padx=(8, 0))
+            ctk.CTkLabel(
+                top, text=order.created_at[:16],
+                text_color="gray", font=ctk.CTkFont(size=11),
+            ).pack(side="right")
+
+            # items
+            for item in order.items:
+                ctk.CTkLabel(
+                    card,
+                    text=f"  • {item.product_name}  ×{item.quantity}  —  {item.subtotal:.2f} €",
+                    anchor="w", text_color="gray", font=ctk.CTkFont(size=12),
+                ).pack(fill="x", padx=16)
+
+            # footer: total + cancel button (step 2)
+            footer = ctk.CTkFrame(card, fg_color="transparent")
+            footer.pack(fill="x", padx=16, pady=(6, 12))
+            ctk.CTkLabel(
+                footer,
+                text=f"Σύνολο: {order.total_price:.2f} €",
+                font=ctk.CTkFont(size=13, weight="bold"),
+            ).pack(side="left")
+
+            if order.status == 'pending':
+                ctk.CTkButton(
+                    footer, text="Ακύρωση", width=110, height=28,
+                    fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+                    font=ctk.CTkFont(size=11),
+                    command=lambda oid=order.id: self._request_cancel(oid),
+                ).pack(side="right")
+
+    # messages
+    def _show_msg(self, text: str, *, success: bool = True, info: bool = False):
+        if success:
+            color = ("#27ae60", "#2ecc71")
+        elif info:
+            color = ("#e67e22", "#d68910")
+        else:
+            color = ("#e74c3c", "#e74c3c")
+        self._msg_label.configure(text_color=color)
+        self._msg_var.set(text)
+        self.after(5000, lambda: self._msg_var.set(""))
+
+    # cancel flow
+    def _request_cancel(self, order_id: int):
+        """Βήμα 2 — ο πελάτης επιλέγει ακύρωση. Εμφάνιση επιβεβαίωσης."""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Ακύρωση Παραγγελίας")
+        dialog.geometry("420x200")
+        dialog.resizable(False, False)
+        dialog.grab_set()
+        dialog.lift()
+        dialog.focus_force()
+
+        ctk.CTkLabel(
+            dialog,
+            text=f"Ακύρωση παραγγελίας #{order_id}",
+            font=ctk.CTkFont(size=15, weight="bold"),
+        ).pack(pady=(28, 8))
+        ctk.CTkLabel(
+            dialog,
+            text="Θέλετε σίγουρα να ακυρώσετε αυτή την παραγγελία;",
+            text_color="gray",
+        ).pack(pady=(0, 24))
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack()
+        ctk.CTkButton(
+            btn_frame, text="Όχι", width=120,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=dialog.destroy,
+        ).pack(side="left", padx=(0, 12))
+        ctk.CTkButton(
+            btn_frame, text="Ναι, ακύρωση", width=150,
+            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            command=lambda: (dialog.destroy(), self._execute_cancel(order_id)),
+        ).pack(side="left")
+
+    def _execute_cancel(self, order_id: int):
+        """Βήματα 3–7 — εκτέλεση ακύρωσης μέσω service layer."""
+        user = Session.current_user()
+        try:
+            OrderController.cancel_order(order_id, user.id)
+            # βήμα 7 — επιστροφή στο ιστορικό με ενημερωμένη λίστα
+            self._show_msg(
+                f"✔ Η παραγγελία #{order_id} ακυρώθηκε επιτυχώς!", success=True
+            )
+        except RefundError as e:
+            # alt flow 3 — ακύρωση ΟΚ, refund απέτυχε
+            self._show_msg(str(e), info=True)
+        except OrderError as e:
+            # alt flow 1 ή 2
+            self._show_msg(str(e), success=False)
+        self._load_orders()
+
+
+
 #  Appointments — UC 2.2  
 
 
