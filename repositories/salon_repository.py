@@ -1,5 +1,5 @@
 from __future__ import annotations
-from database.connection import Database
+from database.connection import Database, _normalize
 from models.salon import Salon
 
 
@@ -33,8 +33,8 @@ class SalonRepository:
         service_id: int | None = None,
     ) -> list[Salon]:
         conn = Database.get_connection()
-        nkw = f"%{name_kw.strip().casefold()}%" if name_kw.strip() else "%"
-        ckw = f"%{city_kw.strip().casefold()}%" if city_kw.strip() else "%"
+        nkw = f"%{_normalize(name_kw.strip())}%" if name_kw.strip() else "%"
+        ckw = f"%{_normalize(city_kw.strip())}%" if city_kw.strip() else "%"
 
         if service_id is not None:
             rows = conn.execute(

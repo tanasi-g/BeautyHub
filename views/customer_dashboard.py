@@ -23,7 +23,7 @@ class CustomerDashboard(BaseDashboard):
         ("Ειδοποιήσεις",     "notifications"),
     ]
 
-def _build_pages(self):
+    def _build_pages(self):
         nav = self._show_page
         appts_page = _AppointmentsPage(self._content)
 
@@ -83,14 +83,14 @@ class _SalonSearchPage(ctk.CTkFrame):
     _ALL_SVC  = "Όλες οι υπηρεσίες"
 
     def __init__(self, master, start_booking=None):
-            super().__init__(master, fg_color="transparent")
-            self._start_booking = start_booking
-            self.columnconfigure(0, weight=1)
-            self.rowconfigure(0, weight=1)
-            self._services_map: dict[str, int] = {}
-            self._build_search_view()
-            self._build_profile_view()
-            self._show_search()
+        super().__init__(master, fg_color="transparent")
+        self._start_booking = start_booking
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self._services_map: dict[str, int] = {}
+        self._build_search_view()
+        self._build_profile_view()
+        self._show_search()
 
     #  lifecycle
     def refresh(self):
@@ -110,43 +110,7 @@ class _SalonSearchPage(ctk.CTkFrame):
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=32, pady=(24, 12))
 
-        # filter search bar 
-        bar = ctk.CTkFrame(self._search_frame, corner_radius=10)
-        bar.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 12))
-        bar.columnconfigure(1, weight=1)
-
-        ctk.CTkLabel(bar, text="Αναζήτηση:", anchor="w").grid(
-            row=0, column=0, padx=(16, 8), pady=14,
-        )
-        self._kw_entry = ctk.CTkEntry(
-            bar, placeholder_text="Όνομα, πόλη ή διεύθυνση…", height=36,
-        )
-        self._kw_entry.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=14)
-        self._kw_entry.bind("<Return>", lambda _: self._do_search())
-
-        ctk.CTkLabel(bar, text="Υπηρεσία:", anchor="w").grid(
-            row=0, column=2, padx=(0, 8), pady=14,
-        )
-        self._svc_combo = ctk.CTkComboBox(
-            bar, values=[self._ALL_SVC], width=200, state="readonly",
-        )
-        self._svc_combo.grid(row=0, column=3, padx=(0, 12), pady=14)
-        self._svc_combo.set(self._ALL_SVC)
-
-        ctk.CTkButton(
-            bar, text="🔍 Αναζήτηση", width=130,
-            command=self._do_search,
-        ).grid(row=0, column=4, padx=(0, 8), pady=14)
-        ctk.CTkButton(
-            bar, text="✕ Καθαρισμός", width=130,
-            fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
-            command=self._clear_filters,
-        ).grid(row=0, column=5, padx=(0, 16), pady=14)
-
-
-
-         # filter bar (step 1)
+        # filter bar
         bar = ctk.CTkFrame(self._search_frame, corner_radius=10)
         bar.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 12))
         bar.columnconfigure(1, weight=2)
@@ -161,11 +125,11 @@ class _SalonSearchPage(ctk.CTkFrame):
         self._name_entry.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=14)
         self._name_entry.bind("<Return>", lambda _: self._do_search())
 
-        ctk.CTkLabel(bar, text="Περιοχή:", anchor="w").grid(
+        ctk.CTkLabel(bar, text="Πόλη:", anchor="w").grid(
             row=0, column=2, padx=(0, 8), pady=14,
         )
         self._city_entry = ctk.CTkEntry(
-            bar, placeholder_text="Πόλη / περιοχή…", height=36, width=160,
+            bar, placeholder_text="π.χ. Αθήνα…", height=36, width=160,
         )
         self._city_entry.grid(row=0, column=3, sticky="ew", padx=(0, 12), pady=14)
         self._city_entry.bind("<Return>", lambda _: self._do_search())
@@ -180,7 +144,7 @@ class _SalonSearchPage(ctk.CTkFrame):
         self._svc_combo.set(self._ALL_SVC)
 
         ctk.CTkButton(
-            bar, text="🔍 Αναζήτηση", width=130,
+            bar, text="Αναζήτηση", width=130,
             command=self._do_search,
         ).grid(row=0, column=6, padx=(0, 8), pady=14)
         ctk.CTkButton(
@@ -205,32 +169,16 @@ class _SalonSearchPage(ctk.CTkFrame):
 
 
     def _do_search(self):
-        #Βήμα 2 — εκτέλεση αναζήτησης με τα τρέχοντα κριτήρια.
-            name_kw    = self._name_entry.get()
-            city_kw    = self._city_entry.get()
-            svc_name   = self._svc_combo.get()
-            service_id = self._services_map.get(svc_name) if svc_name != self._ALL_SVC else None
-            results    = SalonController.search(name_kw, city_kw, service_id)
-            self._render_results(results)
-
-    def _clear_filters(self):
-        """Εναλλακτική ροή 1 — καθαρισμός φίλτρων, επιστροφή στο βήμα 2."""
-        self._name_entry.delete(0, "end")
-        self._city_entry.delete(0, "end")
-        self._svc_combo.set(self._ALL_SVC)
-        self._do_search()
-
-    def _do_search(self):
-        """Βήμα 2 — εκτέλεση αναζήτησης με τα τρέχοντα κριτήρια."""
-        keyword    = self._kw_entry.get()
+        name_kw    = self._name_entry.get()
+        city_kw    = self._city_entry.get()
         svc_name   = self._svc_combo.get()
         service_id = self._services_map.get(svc_name) if svc_name != self._ALL_SVC else None
-        results    = SalonController.search(keyword, service_id)
+        results    = SalonController.search(name_kw, city_kw, service_id)
         self._render_results(results)
 
     def _clear_filters(self):
-        """Εναλλακτική ροή 1 — καθαρισμός φίλτρων, επιστροφή στο βήμα 2."""
-        self._kw_entry.delete(0, "end")
+        self._name_entry.delete(0, "end")
+        self._city_entry.delete(0, "end")
         self._svc_combo.set(self._ALL_SVC)
         self._do_search()
 

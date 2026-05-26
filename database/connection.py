@@ -1,5 +1,13 @@
 import sqlite3
+import unicodedata
 from pathlib import Path
+
+# normalize string for case sensitive
+def _normalize(s: object) -> str:
+    if not isinstance(s, str):
+        return s or ""
+    nfkd = unicodedata.normalize("NFKD", s.casefold())
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
 
 _DB_PATH = Path(__file__).parent.parent / "data" / "salon.db"
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
@@ -21,10 +29,7 @@ class Database:
             cls._conn.row_factory = sqlite3.Row
             cls._conn.execute("PRAGMA foreign_keys = ON")
 
-            cls._conn.create_function(
-                "casefold", 1,
-                lambda s: s.casefold() if isinstance(s, str) else (s or ""),
-            )
+            cls._conn.create_function("casefold", 1, _normalize)
         return cls._conn
 
     @classmethod
