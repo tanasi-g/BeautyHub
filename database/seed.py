@@ -12,12 +12,27 @@ _ROLES = [
 
 #  Χρήστες
 _USERS = [
-    # --- admin
+    # --- admins / διαχειριστές κομμωτηρίων
     {
         "username": "admin",   "email": "admin@salon.gr",
         "password": "admin123",
         "first_name": "Super", "last_name": "Admin",
         "phone": "2100000000", "role_id": 1,
+        "salon_name": "BeautyHub Κέντρο",
+    },
+    {
+        "username": "admin_vorra", "email": "admin.vorra@salon.gr",
+        "password": "admin123",
+        "first_name": "Γιώργος", "last_name": "Παππάς",
+        "phone": "2310000000", "role_id": 1,
+        "salon_name": "BeautyHub Βορρά",
+    },
+    {
+        "username": "admin_glamour", "email": "admin.glamour@salon.gr",
+        "password": "admin123",
+        "first_name": "Δήμητρα", "last_name": "Νικολάου",
+        "phone": "2109999999", "role_id": 1,
+        "salon_name": "Glamour Κομμωτήριο",
     },
     # --- υπάλληλοι
     {
@@ -25,12 +40,28 @@ _USERS = [
         "password": "nikos123",
         "first_name": "Νίκος", "last_name": "Κομμωτής",
         "phone": "6911111111", "role_id": 2,
+        "salon_name": "BeautyHub Κέντρο",
     },
     {
         "username": "maria_k", "email": "maria@salon.gr",
         "password": "maria123",
         "first_name": "Μαρία", "last_name": "Κομμώτρια",
         "phone": "6922222222", "role_id": 2,
+        "salon_name": "BeautyHub Κέντρο",
+    },
+    {
+        "username": "anna_v", "email": "anna@salon.gr",
+        "password": "anna123",
+        "first_name": "Άννα", "last_name": "Βόρεια",
+        "phone": "6933344455", "role_id": 2,
+        "salon_name": "BeautyHub Βορρά",
+    },
+    {
+        "username": "spyros_g", "email": "spyros@salon.gr",
+        "password": "spyros123",
+        "first_name": "Σπύρος", "last_name": "Γλαμουρίδης",
+        "phone": "6944455566", "role_id": 2,
+        "salon_name": "Glamour Κομμωτήριο",
     },
     # --- πελάτες
     {
@@ -90,9 +121,10 @@ def _uid(conn, username: str) -> int:
 def _sid(conn, svc_name: str) -> int:
     return conn.execute("SELECT id FROM services WHERE name=?", (svc_name,)).fetchone()["id"]
 
-def _insert_user(conn, user: dict) -> None:
+def _insert_user(conn, user: dict, salon_ids: dict[str, int]) -> None:
+    salon_id = salon_ids.get(user.get("salon_name")) if user.get("salon_name") else None
     existing = conn.execute(
-        "SELECT id, role_id FROM users WHERE username=?", (user["username"],)
+        "SELECT id, role_id, salon_id FROM users WHERE username=?", (user["username"],)
     ).fetchone()
     if existing:
         # correct role if it was created with wrong role (e.g. via customer registration form)
@@ -101,15 +133,55 @@ def _insert_user(conn, user: dict) -> None:
                 "UPDATE users SET role_id=? WHERE id=?", (user["role_id"], existing["id"])
             )
             print(f"[seed] fixed role for '{user['username']}' -> role_id={user['role_id']}")
+        if salon_id is not None and existing["salon_id"] != salon_id:
+            conn.execute(
+                "UPDATE users SET salon_id=? WHERE id=?", (salon_id, existing["id"])
+            )
         return
     pw_hash = bcrypt.hashpw(user["password"].encode(), bcrypt.gensalt()).decode()
+    payload = {
+        "username":   user["username"],
+        "email":      user["email"],
+        "pw_hash":    pw_hash,
+        "first_name": user["first_name"],
+        "last_name":  user["last_name"],
+        "phone":      user["phone"],
+        "role_id":    user["role_id"],
+        "salon_id":   salon_id,
+    }
     conn.execute(
-        "INSERT INTO users (username,email,password_hash,first_name,last_name,phone,role_id) "
-        "VALUES (:username,:email,:pw_hash,:first_name,:last_name,:phone,:role_id)",
-        {**user, "pw_hash": pw_hash},
+        "INSERT INTO users (username,email,password_hash,first_name,last_name,phone,role_id,salon_id) "
+        "VALUES (:username,:email,:pw_hash,:first_name,:last_name,:phone,:role_id,:salon_id)",
+        payload,
     )
     print(f"[seed] user '{user['username']}'  ->  password: {user['password']}")
 
+
+
+def _backfill_salon_assignments(conn) -> None:
+    salon_ids = {
+        row["name"]: row["id"]
+        for row in conn.execute("SELECT id,name FROM salons").fetchall()
+    }
+    if not salon_ids:
+        return
+    for u in _USERS:
+        if not u.get("salon_name"):
+            continue
+        sid = salon_ids.get(u["salon_name"])
+        if sid is None:
+            continue
+        row = conn.execute(
+            "SELECT id, salon_id FROM users WHERE username=?", (u["username"],)
+        ).fetchone()
+        if row and row["salon_id"] != sid:
+            conn.execute("UPDATE users SET salon_id=? WHERE id=?", (sid, row["id"]))
+        if row and u["role_id"] == 1:
+            conn.execute(
+                "UPDATE salons SET owner_id=? WHERE id=? AND owner_id IS NULL",
+                (row["id"], sid),
+            )
+    conn.commit()
 
 
 # build data
@@ -121,7 +193,16 @@ def seed_database() -> None:
     ).fetchone()
 
     if has_data:
-        print("Database already seeded.")
+        print("Database already seeded. Running backfill for salon assignments…")
+        
+        salon_ids = {
+            row["name"]: row["id"]
+            for row in conn.execute("SELECT id,name FROM salons").fetchall()
+        }
+        for u in _USERS:
+            _insert_user(conn, u, salon_ids)
+        conn.commit()
+        _backfill_salon_assignments(conn)
         return
 
     print("Seeding database...")
@@ -131,11 +212,6 @@ def seed_database() -> None:
         "INSERT OR IGNORE INTO roles (id,name,display_name) VALUES (?,?,?)",
         _ROLES
     )
-
-    # - users -
-    for u in _USERS:
-        _insert_user(conn, u)
-    conn.commit()
 
     # - services -
     for name, desc, dur, price in _SERVICES:
@@ -161,18 +237,36 @@ def seed_database() -> None:
         )
     conn.commit()
 
+    salon_ids = {
+        row["name"]: row["id"]
+        for row in conn.execute(
+            "SELECT id,name FROM salons"
+        ).fetchall()
+    }
+
+    # - users-
+    for u in _USERS:
+        _insert_user(conn, u, salon_ids)
+    conn.commit()
+
+    # - salon owners (one admin per salon) -
+    for u in _USERS:
+        if u["role_id"] == 1 and u.get("salon_name"):
+            sid = salon_ids.get(u["salon_name"])
+            uid = conn.execute(
+                "SELECT id FROM users WHERE username=?", (u["username"],)
+            ).fetchone()["id"]
+            conn.execute(
+                "UPDATE salons SET owner_id=? WHERE id=? AND owner_id IS NULL",
+                (uid, sid),
+            )
+    conn.commit()
+
     # salon - services -
     svc_ids = {
         row["name"]: row["id"]
         for row in conn.execute(
             "SELECT id,name FROM services"
-        ).fetchall()
-    }
-
-    salon_ids = {
-        row["name"]: row["id"]
-        for row in conn.execute(
-            "SELECT id,name FROM salons"
         ).fetchall()
     }
 

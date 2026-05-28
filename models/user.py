@@ -12,6 +12,7 @@ class User:
     role_name: str        # 'admin' | 'employee' | 'customer'
     role_display: str     # 'Διαχειριστής' | 'Υπάλληλος' | 'Πελάτης'
     is_active: bool
+    salon_id: int | None = None
 
     @property
     def full_name(self) -> str:

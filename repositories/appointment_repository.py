@@ -174,14 +174,28 @@ class AppointmentRepository:
         return count > 0
 
     @staticmethod
-    def get_all_employees() -> list[dict]:
-        rows = Database.get_connection().execute(
-            """
-            SELECT u.id, u.first_name || ' ' || u.last_name AS full_name
-              FROM users u
-              JOIN roles r ON r.id = u.role_id
-             WHERE r.name = 'employee' AND u.is_active = 1
-             ORDER BY u.first_name, u.last_name
-            """,
-        ).fetchall()
+    def get_all_employees(salon_id: int | None = None) -> list[dict]:
+        if salon_id is not None:
+            rows = Database.get_connection().execute(
+                """
+                SELECT u.id, u.first_name || ' ' || u.last_name AS full_name
+                  FROM users u
+                  JOIN roles r ON r.id = u.role_id
+                 WHERE r.name = 'employee'
+                   AND u.is_active = 1
+                   AND u.salon_id = ?
+                 ORDER BY u.first_name, u.last_name
+                """,
+                (salon_id,),
+            ).fetchall()
+        else:
+            rows = Database.get_connection().execute(
+                """
+                SELECT u.id, u.first_name || ' ' || u.last_name AS full_name
+                  FROM users u
+                  JOIN roles r ON r.id = u.role_id
+                 WHERE r.name = 'employee' AND u.is_active = 1
+                 ORDER BY u.first_name, u.last_name
+                """,
+            ).fetchall()
         return [{"id": r["id"], "name": r["full_name"]} for r in rows]

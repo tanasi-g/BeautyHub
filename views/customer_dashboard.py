@@ -255,19 +255,27 @@ class _SalonSearchPage(ctk.CTkFrame):
         self._info_card.columnconfigure((0, 1, 2, 3), weight=1)
 
 
-      # services section
+      # services + employees section
         svc_wrap = ctk.CTkFrame(self._profile_frame, fg_color="transparent")
         svc_wrap.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 16))
-        svc_wrap.columnconfigure(0, weight=1)
+        svc_wrap.columnconfigure(0, weight=2)
+        svc_wrap.columnconfigure(1, weight=1)
         svc_wrap.rowconfigure(1, weight=1)
         ctk.CTkLabel(
             svc_wrap, text="Υπηρεσίες κομμωτηρίου",
             font=ctk.CTkFont(size=14, weight="bold"), anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 6))
+        ctk.CTkLabel(
+            svc_wrap, text="Κομμωτές",
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w",
+        ).grid(row=0, column=1, sticky="w", pady=(0, 6), padx=(12, 0))
         self._svc_table = ctk.CTkScrollableFrame(svc_wrap, corner_radius=10)
         self._svc_table.grid(row=1, column=0, sticky="nsew")
         for i in range(len(self._SVC_COLS)):
             self._svc_table.columnconfigure(i, weight=1)
+        self._emp_list = ctk.CTkScrollableFrame(svc_wrap, corner_radius=10)
+        self._emp_list.grid(row=1, column=1, sticky="nsew", padx=(12, 0))
+        self._emp_list.columnconfigure(0, weight=1)
 
         # κουμπί κράτησης (κάτω από τις υπηρεσίες)
         book_bar = ctk.CTkFrame(self._profile_frame, fg_color="transparent")
@@ -275,7 +283,7 @@ class _SalonSearchPage(ctk.CTkFrame):
         book_bar.columnconfigure(0, weight=1)
         ctk.CTkButton(
             book_bar,
-            text="📅  Κράτηση / Νέο Ραντεβού",
+            text="  Κράτηση / Νέο Ραντεβού",
             width=240, height=40,
             font=ctk.CTkFont(size=14, weight="bold"),
             command=self._book_appointment,
@@ -292,12 +300,15 @@ class _SalonSearchPage(ctk.CTkFrame):
         # info card fields
         for w in self._info_card.winfo_children():
             w.destroy()
-        for col, (icon, label, val) in enumerate([
+        info_cells = [
             ("", "Πόλη",       salon.city),
             ("", "Διεύθυνση",  salon.address),
             ("", "Τηλέφωνο",   salon.phone or "—"),
             ("",  "Email",      salon.email or "—"),
-        ]):
+        ]
+        if getattr(salon, "owner_name", None):
+            info_cells.append(("", "Διαχειριστής", salon.owner_name))
+        for col, (icon, label, val) in enumerate(info_cells):
             cell = ctk.CTkFrame(self._info_card, fg_color="transparent")
             cell.grid(row=0, column=col, padx=20, pady=16, sticky="nsew")
             ctk.CTkLabel(
@@ -339,6 +350,24 @@ class _SalonSearchPage(ctk.CTkFrame):
                         self._svc_table, text=val, anchor="w",
                         fg_color=bg, corner_radius=4,
                     ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
+
+        # employees list
+        for w in self._emp_list.winfo_children():
+            w.destroy()
+        employees = SalonController.get_employees(salon.id)
+        if not employees:
+            ctk.CTkLabel(
+                self._emp_list,
+                text="Δεν έχουν ανατεθεί κομμωτές.",
+                text_color="gray",
+            ).grid(row=0, column=0, pady=12, padx=8)
+        else:
+            for i, emp in enumerate(employees):
+                bg = ("gray92", "gray18") if i % 2 == 0 else ("gray96", "gray15")
+                ctk.CTkLabel(
+                    self._emp_list, text=f"• {emp['name']}",
+                    anchor="w", fg_color=bg, corner_radius=4,
+                ).grid(row=i, column=0, sticky="ew", padx=4, pady=2)
 
         self._show_profile()
 
@@ -1583,7 +1612,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._sel_slot      = None
         self._booking_salon = salon
         self._svc_salon_lbl.configure(
-            text=f"📍  {salon.name}" if salon else ""
+            text=f"  {salon.name}" if salon else ""
         )
         self._hide_all()
         self._svc_frame.grid(row=0, column=0, sticky="nsew")
@@ -1593,12 +1622,20 @@ class _AppointmentsPage(ctk.CTkFrame):
         for w in self._svc_cards.winfo_children():
             w.destroy()
 
-        salon_id = self._booking_salon.id if self._booking_salon else None
+        if self._booking_salon is None:
+            ctk.CTkLabel(
+                self._svc_cards,
+                text="Παρακαλώ επιλέξτε πρώτα κομμωτήριο\nαπό τη σελίδα «Κομμωτήρια».",
+                text_color="gray", justify="center",
+            ).grid(row=0, column=0, pady=48)
+            return
+
+        salon_id = self._booking_salon.id
         services = AppointmentController.get_active_services(salon_id)
         if not services:
             ctk.CTkLabel(
                 self._svc_cards,
-                text="Δεν υπάρχουν διαθέσιμες υπηρεσίες.",
+                text="Δεν υπάρχουν διαθέσιμες υπηρεσίες για αυτό το κομμωτήριο.",
                 text_color="gray",
             ).grid(row=0, column=0, pady=48)
             return
@@ -1662,7 +1699,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._sel_employee = None
         self._sel_slot     = None
         self._emp_salon_lbl.configure(
-            text=f"📍  {self._booking_salon.name}" if self._booking_salon else ""
+            text=f"  {self._booking_salon.name}" if self._booking_salon else ""
         )
         self._hide_all()
         self._emp_frame.grid(row=0, column=0, sticky="nsew")
@@ -1672,7 +1709,17 @@ class _AppointmentsPage(ctk.CTkFrame):
         for w in self._emp_cards.winfo_children():
             w.destroy()
 
-        employees = AppointmentController.get_employees()  
+        salon_id = self._booking_salon.id if self._booking_salon else None
+        employees = AppointmentController.get_employees(salon_id)
+
+        # only the «any» sentinel means there are no actual employees in this salon
+        if salon_id is not None and len(employees) <= 1:
+            ctk.CTkLabel(
+                self._emp_cards,
+                text="Δεν υπάρχουν διαθέσιμοι υπάλληλοι σε αυτό το κομμωτήριο.",
+                text_color="gray",
+            ).grid(row=0, column=0, pady=48)
+            return
 
         for i, emp in enumerate(employees):
             card = ctk.CTkFrame(self._emp_cards, corner_radius=10)
@@ -1750,7 +1797,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cal_back_action = self._go_emp
         self._cal_title_label.configure(text="Βήμα 3 — Επιλογή Ημερομηνίας & Ώρας")
         self._cal_salon_lbl.configure(
-            text=f"📍  {self._booking_salon.name}" if self._booking_salon else ""
+            text=f"  {self._booking_salon.name}" if self._booking_salon else ""
         )
         self._hide_all()
         self._cal_frame.grid(row=0, column=0, sticky="nsew")
@@ -1829,8 +1876,9 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         date_str = day.strftime("%Y-%m-%d")
         if self._cal_mode == "new":
+            salon_id = self._booking_salon.id if self._booking_salon else None
             slots = AppointmentController.get_available_slots(
-                date_str, self._sel_service.id, self._sel_employee["id"],
+                date_str, self._sel_service.id, self._sel_employee["id"], salon_id,
             )
         else:
             slots = AppointmentController.get_available_slots_for_reschedule(

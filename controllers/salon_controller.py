@@ -1,7 +1,7 @@
 from models.salon import Salon
 from models.service import Service
 from services.salon_service import SalonService
-from services.errors import SalonError  # re-exported για τα views
+from services.errors import SalonError  
 
 __all__ = ["SalonController", "SalonError"]
 
@@ -47,3 +47,7 @@ class SalonController:
     @staticmethod
     def remove_service(salon_id: int, service_id: int) -> None:
         SalonService.remove_service(salon_id, service_id)
+
+    @staticmethod
+    def get_employees(salon_id: int) -> list[dict]:
+        return SalonService.get_employees(salon_id)

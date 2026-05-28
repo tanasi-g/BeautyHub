@@ -11,7 +11,7 @@ class UserRepository:
         return Database.get_connection().execute(
             """
             SELECT u.id, u.username, u.email, u.password_hash,
-                   u.first_name, u.last_name, u.phone, u.is_active,
+                   u.first_name, u.last_name, u.phone, u.is_active, u.salon_id,
                    r.name AS role_name, r.display_name AS role_display
               FROM users u
               JOIN roles r ON r.id = u.role_id
@@ -84,6 +84,8 @@ class UserRepository:
 
     @staticmethod
     def row_to_user(row: sqlite3.Row) -> User:
+        keys = row.keys() if hasattr(row, "keys") else []
+        salon_id = row["salon_id"] if "salon_id" in keys else None
         return User(
             id=row["id"],
             username=row["username"],
@@ -94,4 +96,5 @@ class UserRepository:
             role_name=row["role_name"],
             role_display=row["role_display"],
             is_active=bool(row["is_active"]),
+            salon_id=salon_id,
         )

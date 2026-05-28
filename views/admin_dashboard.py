@@ -1,4 +1,6 @@
 import customtkinter as ctk
+from controllers.salon_controller import SalonController
+from services.errors import SalonError
 from views.base_dashboard import BaseDashboard
 from controllers.auth_controller import AuthController
 from views.notifications_page import NotificationsPage
@@ -7,6 +9,21 @@ from pathlib import Path
 from tkinter import filedialog
 from controllers.service_controller import ServiceController, ServiceError
 from controllers.inventory_controller import InventoryController, InventoryError
+
+_BG        = "#e9eff4"
+_CARD_BG   = "#f4f7f9"
+_ACCENT    = "#4a6984"
+_ACCENT_HV = "#1d2d44"
+_MUTED     = "#cbd9e0"
+_TEXT      = "#2b211a"
+_SUBTEXT   = "#5c534c"
+_ENTRY_BG  = "#ffffff"
+_BORDER    = "#dbe3e8"
+_ERROR     = "#c0392b"
+_SUCCESS   = "#27ae60"
+_SUCCESS_HV= "#1e8449"
+_WARNING   = "#e67e22"
+_DANGER_HV = "#922b21"
 
 class AdminDashboard(BaseDashboard):
     NAV_ITEMS = [
@@ -22,7 +39,7 @@ class AdminDashboard(BaseDashboard):
 
     def _build_pages(self):
         self._register_page("home",          _HomePage(self._content))
-        self._register_page("salons",        _PlaceholderPage(self._content, "Κομμωτήρια"))
+        self._register_page("salons",        _SalonsPage(self._content))
         self._register_page("users",         _UsersPage(self._content))
         self._register_page("services",      _ServicesPage(self._content))
         self._register_page("eshop",         _EShopPage(self._content))
@@ -72,6 +89,317 @@ class _HomePage(ctk.CTkFrame):
     def refresh(self):
         for lbl, (_, _, fn) in zip(self._count_labels, self._STATS):
             lbl.configure(text=str(fn()))
+
+class _SalonsPage(ctk.CTkFrame):
+    
+
+    _COLS = ["#", "Όνομα", "Πόλη", "Διεύθυνση", "Τηλέφωνο", "Email", "Κατάσταση", ""]
+
+    def __init__(self, master):
+        super().__init__(master, fg_color="transparent")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
+        self._active_salon_id: int | None = None
+        self._build_list_view()
+        self._build_form_view()
+        self._build_services_view()
+        self._show_list()
+
+    #  list
+    def _build_list_view(self):
+        self._list_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._list_frame.columnconfigure(0, weight=1)
+        self._list_frame.rowconfigure(1, weight=1)
+
+        hdr = ctk.CTkFrame(self._list_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 12))
+        hdr.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            hdr, text="Κομμωτήρια",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(
+            hdr, text="+ Νέο Κομμωτήριο", width=165,
+            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
+            command=self._show_form,
+        ).grid(row=0, column=1, sticky="e")
+
+        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10,
+                                              fg_color=_CARD_BG)
+        self._table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
+        for i in range(len(self._COLS)):
+            self._table.columnconfigure(i, weight=1)
+
+    def _refresh_table(self):
+        for w in self._table.winfo_children():
+            w.destroy()
+
+        for col, h in enumerate(self._COLS):
+            ctk.CTkLabel(
+                self._table, text=h,
+                font=ctk.CTkFont(weight="bold"), anchor="w",
+                text_color=_TEXT,
+            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
+
+        ctk.CTkFrame(self._table, height=1, fg_color=_MUTED).grid(
+            row=1, column=0, columnspan=len(self._COLS), sticky="ew", padx=4
+        )
+
+        salons = SalonController.get_all()
+
+        if not salons:
+            ctk.CTkLabel(
+                self._table,
+                text="Δεν υπάρχουν κομμωτήρια ακόμα. Πατήστε «+ Νέο Κομμωτήριο».",
+                text_color=_SUBTEXT,
+            ).grid(row=2, column=0, columnspan=len(self._COLS), pady=24)
+            return
+
+        for r_idx, salon in enumerate(salons, start=2):
+            values = [
+                str(salon.id),
+                salon.name,
+                salon.city,
+                salon.address,
+                salon.phone or "—",
+                salon.email or "—",
+            ]
+            bg = _CARD_BG if r_idx % 2 == 0 else _BG
+            for col, val in enumerate(values):
+                ctk.CTkLabel(
+                    self._table, text=val, anchor="w",
+                    fg_color=bg, corner_radius=4,
+                ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
+
+            # toggle active button
+            lbl      = "✔ Ενεργό" if salon.is_active else "✘ Ανενεργό"
+            color    = _SUCCESS    if salon.is_active else _ERROR
+            color_hv = _SUCCESS_HV if salon.is_active else _DANGER_HV
+            ctk.CTkButton(
+                self._table, text=lbl, width=100, height=26,
+                fg_color=color, hover_color=color_hv,
+                text_color="#ffffff",
+                font=ctk.CTkFont(size=11),
+                command=lambda sid=salon.id: self._toggle(sid),
+            ).grid(row=r_idx, column=6, padx=4, pady=2)
+
+            # services management button
+            ctk.CTkButton(
+                self._table, text="💇 Υπηρεσίες", width=120, height=26,
+                fg_color=_ACCENT, hover_color=_ACCENT_HV,
+                font=ctk.CTkFont(size=11),
+                command=lambda sid=salon.id, sname=salon.name: self._open_services(sid, sname),
+            ).grid(row=r_idx, column=7, padx=4, pady=2)
+
+    def _toggle(self, salon_id: int):
+        SalonController.toggle_active(salon_id)
+        self._refresh_table()
+
+    def _open_services(self, salon_id: int, salon_name: str):
+        self._active_salon_id = salon_id
+        self._svc_title.configure(text=f"Υπηρεσίες  —  {salon_name}")
+        self._refresh_services_view()
+        self._list_frame.grid_remove()
+        self._services_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
+
+    #  form
+    def _build_form_view(self):
+        self._form_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._form_frame.columnconfigure(0, weight=1)
+
+        hdr = ctk.CTkFrame(self._form_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 4))
+        hdr.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            hdr, text="Νέο Κομμωτήριο",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+
+        card = ctk.CTkFrame(self._form_frame, corner_radius=12, fg_color=_CARD_BG,
+                            border_width=1, border_color=_BORDER)
+        card.grid(row=1, column=0, sticky="ew", padx=32, pady=12)
+        card.columnconfigure(1, weight=1)
+
+        fields = [
+            ("Όνομα *",      "_s_name",    "π.χ. Salon Elegance"),
+            ("Διεύθυνση *",  "_s_address", "π.χ. Ερμού 12"),
+            ("Πόλη *",       "_s_city",    "π.χ. Αθήνα"),
+            ("Τηλέφωνο",     "_s_phone",   "π.χ. 2101234567"),
+            ("Email",        "_s_email",   "π.χ. info@salon.gr"),
+        ]
+        for row_idx, (label, attr, ph) in enumerate(fields):
+            ctk.CTkLabel(card, text=label, anchor="w", text_color=_SUBTEXT).grid(
+                row=row_idx, column=0, sticky="w", padx=(20, 12), pady=(14, 2)
+            )
+            entry = ctk.CTkEntry(card, placeholder_text=ph, height=36,
+                                 fg_color=_ENTRY_BG, border_color=_BORDER,
+                                 text_color=_TEXT, placeholder_text_color=_MUTED)
+            entry.grid(row=row_idx, column=1, sticky="ew", padx=(0, 20), pady=(14, 2))
+            setattr(self, attr, entry)
+
+        self._salon_msg = ctk.StringVar()
+        self._salon_msg_label = ctk.CTkLabel(
+            card, textvariable=self._salon_msg,
+            font=ctk.CTkFont(size=12), wraplength=480,
+        )
+        self._salon_msg_label.grid(row=len(fields), column=0, columnspan=2, pady=(8, 4))
+
+        btn_row = ctk.CTkFrame(card, fg_color="transparent")
+        btn_row.grid(
+            row=len(fields) + 1, column=0, columnspan=2,
+            pady=(4, 20), padx=20, sticky="e",
+        )
+        ctk.CTkButton(
+            btn_row, text="Ακύρωση", width=110,
+            fg_color="transparent", border_width=1,
+            border_color=_BORDER,
+            text_color=_TEXT,
+            hover_color=_MUTED,
+            command=self._cancel_form,
+        ).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(
+            btn_row, text="Αποθήκευση", width=130,
+            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
+            command=self._submit_form,
+        ).pack(side="left")
+
+    #  services view
+    def _build_services_view(self):
+        self._services_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._services_frame.columnconfigure(0, weight=1)
+        self._services_frame.rowconfigure(2, weight=1)
+
+        # header
+        hdr = ctk.CTkFrame(self._services_frame, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 4))
+        hdr.columnconfigure(0, weight=1)
+        self._svc_title = ctk.CTkLabel(
+            hdr, text="", font=ctk.CTkFont(size=20, weight="bold"),
+        )
+        self._svc_title.grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(
+            hdr, text="← Πίσω", width=100,
+            fg_color="transparent", border_width=1,
+            border_color=_BORDER,
+            text_color=_TEXT,
+            hover_color=_MUTED,
+            command=self._show_list,
+        ).grid(row=0, column=1, sticky="e")
+
+        # add-service row
+        add_row = ctk.CTkFrame(self._services_frame, corner_radius=10,  fg_color = _CARD_BG)
+        add_row.grid(row=1, column=0, sticky="ew", padx=32, pady=(8, 12))
+        add_row.columnconfigure(0, weight=1)
+        ctk.CTkLabel(add_row, text="Προσθήκη υπηρεσίας:", anchor="w").grid(
+            row=0, column=0, sticky="w", padx=16, pady=12
+        )
+        self._svc_combo = ctk.CTkComboBox(add_row, values=[], width=280, state="readonly")
+        self._svc_combo.grid(row=0, column=1, padx=8, pady=12)
+        ctk.CTkButton(
+            add_row, text="+ Προσθήκη", width=120,
+            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
+            command=self._add_service,
+        ).grid(row=0, column=2, padx=(0, 16), pady=12)
+
+        # assigned services table
+        self._svc_table = ctk.CTkScrollableFrame(self._services_frame, corner_radius=10, fg_color=_CARD_BG)
+        self._svc_table.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
+        self._svc_table.columnconfigure((0, 1, 2, 3), weight=1)
+
+    def _refresh_services_view(self):
+        # refresh combo with available (unassigned) services
+        available = SalonController.get_available_services(self._active_salon_id)
+        self._available_map = {s.name: s.id for s in available}
+        self._svc_combo.configure(values=list(self._available_map.keys()))
+        self._svc_combo.set("" if not available else list(self._available_map.keys())[0])
+
+        # refresh assigned table
+        for w in self._svc_table.winfo_children():
+            w.destroy()
+
+        headers = ["Όνομα", "Διάρκεια", "Τιμή", ""]
+        for col, h in enumerate(headers):
+            ctk.CTkLabel(
+                self._svc_table, text=h,
+                font=ctk.CTkFont(weight="bold"), anchor="w",
+            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
+        ctk.CTkFrame(self._svc_table, height=1, fg_color=_MUTED).grid(
+            row=1, column=0, columnspan=4, sticky="ew", padx=4
+        )
+
+        assigned = SalonController.get_services(self._active_salon_id)
+        if not assigned:
+            ctk.CTkLabel(
+                self._svc_table,
+                text="Δεν έχουν ανατεθεί υπηρεσίες σε αυτό το κομμωτήριο.",
+                text_color=_SUBTEXT,
+            ).grid(row=2, column=0, columnspan=4, pady=20)
+            return
+
+        for r_idx, svc in enumerate(assigned, start=2):
+            bg = _CARD_BG if r_idx % 2 == 0 else _BG
+            for col, val in enumerate([svc.name, f"{svc.duration_min} λεπτά", f"{svc.price:.2f} €"]):
+                ctk.CTkLabel(
+                    self._svc_table, text=val, anchor="w",
+                    fg_color=bg, corner_radius=4,
+                ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
+            ctk.CTkButton(
+                self._svc_table, text="✕ Αφαίρεση", width=110, height=26,
+                fg_color=_ERROR, hover_color=_DANGER_HV,
+                font=ctk.CTkFont(size=11),
+                command=lambda sid=svc.id: self._remove_service(sid),
+            ).grid(row=r_idx, column=3, padx=4, pady=2)
+
+    def _add_service(self):
+        name = self._svc_combo.get()
+        service_id = self._available_map.get(name)
+        if not service_id:
+            return
+        SalonController.add_service(self._active_salon_id, service_id)
+        self._refresh_services_view()
+
+    def _remove_service(self, service_id: int):
+        SalonController.remove_service(self._active_salon_id, service_id)
+        self._refresh_services_view()
+
+    #  navigation
+    def refresh(self):
+        self._show_list()
+
+    def _show_list(self):
+        self._form_frame.grid_remove()
+        self._services_frame.grid_remove()
+        self._list_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        self._refresh_table()
+
+    def _show_form(self):
+        self._list_frame.grid_remove()
+        for attr in ("_s_name", "_s_address", "_s_city", "_s_phone", "_s_email"):
+            getattr(self, attr).delete(0, "end")
+        self._salon_msg.set("")
+        self._salon_msg_label.configure(text_color=_SUBTEXT)
+        self._form_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
+
+    #  actions
+    def _cancel_form(self):
+        self._show_list()
+
+    def _submit_form(self):
+        self._salon_msg.set("")
+        try:
+            SalonController.create(
+                name=self._s_name.get(),
+                address=self._s_address.get(),
+                city=self._s_city.get(),
+                phone=self._s_phone.get(),
+                email=self._s_email.get(),
+            )
+            self._salon_msg_label.configure(text_color=_SUCCESS)
+            self._salon_msg.set("Το κομμωτήριο δημιουργήθηκε επιτυχώς!")
+            self.after(1200, self._show_list)
+        except SalonError as e:
+            self._salon_msg_label.configure(text_color=_ERROR)
+            self._salon_msg.set(str(e))
 
 
 class _UsersPage(ctk.CTkFrame):
@@ -376,10 +704,6 @@ class _PlaceholderPage(ctk.CTkFrame):
         ).grid(row=0, column=0)
 
 class _ServicesPage(ctk.CTkFrame):
-    """
-    Λίστα υπηρεσιών + inline φόρμα δημιουργίας.
-    Εναλλάσσεται μεταξύ list-view και form-view.
-    """
 
     def __init__(self, master):
         super().__init__(master, fg_color="transparent")

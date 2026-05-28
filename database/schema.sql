@@ -14,9 +14,11 @@ CREATE TABLE IF NOT EXISTS users (
     last_name     TEXT    NOT NULL,
     phone         TEXT,
     role_id       INTEGER NOT NULL,
+    salon_id      INTEGER,
     is_active     INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (role_id) REFERENCES roles(id)
+    FOREIGN KEY (role_id)  REFERENCES roles(id),
+    FOREIGN KEY (salon_id) REFERENCES salons(id)
 );
 
 -- Κομμωτήρια
@@ -27,8 +29,10 @@ CREATE TABLE IF NOT EXISTS salons (
     city       TEXT    NOT NULL,
     phone      TEXT,
     email      TEXT,
+    owner_id   INTEGER,
     is_active  INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+    created_at TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS salon_services (
@@ -39,7 +43,7 @@ CREATE TABLE IF NOT EXISTS salon_services (
     FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
 );
 
---  Μελλοντικοί πίνακες
+
 
 CREATE TABLE IF NOT EXISTS services (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,

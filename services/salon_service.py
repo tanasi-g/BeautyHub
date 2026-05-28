@@ -76,3 +76,7 @@ class SalonService:
     @staticmethod
     def remove_service(salon_id: int, service_id: int) -> None:
         SalonServiceRepository.remove(salon_id, service_id)
+
+    @staticmethod
+    def get_employees(salon_id: int) -> list[dict]:
+        return SalonRepository.get_employees(salon_id)

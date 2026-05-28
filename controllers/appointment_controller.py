@@ -14,16 +14,17 @@ class AppointmentController:
         return AppointmentService.get_active_services(salon_id)
 
     @staticmethod
-    def get_employees() -> list[dict]:
-        return AppointmentService.get_employees()
+    def get_employees(salon_id: int | None = None) -> list[dict]:
+        return AppointmentService.get_employees(salon_id)
 
     @staticmethod
     def get_available_slots(
         date_str: str,
         service_id: int,
         employee_id: int | None,
+        salon_id: int | None = None,
     ) -> list[dict]:
-        return AppointmentService.get_available_slots(date_str, service_id, employee_id)
+        return AppointmentService.get_available_slots(date_str, service_id, employee_id, salon_id)
 
     @staticmethod
     def create_appointment(
@@ -50,7 +51,7 @@ class AppointmentController:
     def get_by_customer(customer_id: int) -> list[AppointmentDetail]:
         return AppointmentService.get_by_customer(customer_id)
 
-    # ---------------------------------------------------------------- UC 2.3 — employee actions
+    #  UC 2.3 — employee actions
 
     @staticmethod
     def get_by_employee(employee_id: int) -> list[EmployeeAppointmentDetail]:
@@ -74,7 +75,7 @@ class AppointmentController:
     ) -> None:
         AppointmentService.reschedule_appointment(appt_id, employee_id, new_scheduled_at)
 
-    # ---------------------------------------------------------------- UC 2.12 — customer modification
+    #  UC 2.12 — customer modification
 
     @staticmethod
     def get_available_slots_for_reschedule(

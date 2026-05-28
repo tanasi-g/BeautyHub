@@ -41,11 +41,12 @@ class Database:
 
     @classmethod
     def _apply_migrations(cls) -> None:
-        """Idempotent migrations for columns added after initial release."""
         conn = cls.get_connection()
         for ddl in [
             "ALTER TABLE orders ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cod'",
             "ALTER TABLE appointments ADD COLUMN salon_id INTEGER REFERENCES salons(id)",
+            "ALTER TABLE users ADD COLUMN salon_id INTEGER REFERENCES salons(id)",
+            "ALTER TABLE salons ADD COLUMN owner_id INTEGER REFERENCES users(id)",
         ]:
             try:
                 conn.execute(ddl)

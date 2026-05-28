@@ -8,7 +8,14 @@ class SalonRepository:
     @staticmethod
     def get_all() -> list[Salon]:
         rows = Database.get_connection().execute(
-            "SELECT id, name, address, city, phone, email, is_active FROM salons ORDER BY name"
+            """
+            SELECT s.id, s.name, s.address, s.city, s.phone, s.email, s.is_active,
+                   s.owner_id,
+                   o.first_name || ' ' || o.last_name AS owner_name
+              FROM salons s
+              LEFT JOIN users o ON o.id = s.owner_id
+             ORDER BY s.name
+            """
         ).fetchall()
         return [SalonRepository._to_model(r) for r in rows]
 
@@ -21,10 +28,42 @@ class SalonRepository:
     @staticmethod
     def get_by_id(salon_id: int) -> Salon | None:
         row = Database.get_connection().execute(
-            "SELECT id, name, address, city, phone, email, is_active FROM salons WHERE id = ?",
+            """
+            SELECT s.id, s.name, s.address, s.city, s.phone, s.email, s.is_active,
+                   s.owner_id,
+                   o.first_name || ' ' || o.last_name AS owner_name
+              FROM salons s
+              LEFT JOIN users o ON o.id = s.owner_id
+             WHERE s.id = ?
+            """,
             (salon_id,),
         ).fetchone()
         return SalonRepository._to_model(row) if row else None
+
+    @staticmethod
+    def get_employees(salon_id: int) -> list[dict]:
+        rows = Database.get_connection().execute(
+            """
+            SELECT u.id, u.first_name || ' ' || u.last_name AS full_name
+              FROM users u
+              JOIN roles r ON r.id = u.role_id
+             WHERE r.name = 'employee'
+               AND u.is_active = 1
+               AND u.salon_id = ?
+             ORDER BY u.first_name, u.last_name
+            """,
+            (salon_id,),
+        ).fetchall()
+        return [{"id": r["id"], "name": r["full_name"]} for r in rows]
+
+    @staticmethod
+    def set_owner(salon_id: int, owner_id: int | None) -> None:
+        conn = Database.get_connection()
+        conn.execute(
+            "UPDATE salons SET owner_id = ? WHERE id = ?",
+            (owner_id, salon_id),
+        )
+        conn.commit()
 
     @staticmethod
     def search(
@@ -39,9 +78,12 @@ class SalonRepository:
         if service_id is not None:
             rows = conn.execute(
                 """
-                SELECT DISTINCT s.id, s.name, s.address, s.city, s.phone, s.email, s.is_active
+                SELECT DISTINCT s.id, s.name, s.address, s.city, s.phone, s.email, s.is_active,
+                       s.owner_id,
+                       o.first_name || ' ' || o.last_name AS owner_name
                   FROM salons s
                   JOIN salon_services ss ON ss.salon_id = s.id
+                  LEFT JOIN users o ON o.id = s.owner_id
                  WHERE s.is_active = 1
                    AND ss.service_id = ?
                    AND casefold(s.name) LIKE ?
@@ -53,12 +95,15 @@ class SalonRepository:
         else:
             rows = conn.execute(
                 """
-                SELECT id, name, address, city, phone, email, is_active
-                  FROM salons
-                 WHERE is_active = 1
-                   AND casefold(name) LIKE ?
-                   AND casefold(city) LIKE ?
-                 ORDER BY name
+                SELECT s.id, s.name, s.address, s.city, s.phone, s.email, s.is_active,
+                       s.owner_id,
+                       o.first_name || ' ' || o.last_name AS owner_name
+                  FROM salons s
+                  LEFT JOIN users o ON o.id = s.owner_id
+                 WHERE s.is_active = 1
+                   AND casefold(s.name) LIKE ?
+                   AND casefold(s.city) LIKE ?
+                 ORDER BY s.name
                 """,
                 (nkw, ckw),
             ).fetchall()
@@ -86,6 +131,7 @@ class SalonRepository:
 
     @staticmethod
     def _to_model(row) -> Salon:
+        keys = row.keys() if hasattr(row, "keys") else []
         return Salon(
             id=row["id"],
             name=row["name"],
@@ -94,4 +140,6 @@ class SalonRepository:
             phone=row["phone"],
             email=row["email"],
             is_active=bool(row["is_active"]),
+            owner_id=row["owner_id"] if "owner_id" in keys else None,
+            owner_name=row["owner_name"] if "owner_name" in keys else None,
         )

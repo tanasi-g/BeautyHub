@@ -24,9 +24,9 @@ class AppointmentService:
         return [s for s in ServiceRepository.get_all() if s.is_active]
 
     @staticmethod
-    def get_employees() -> list[dict]:
-        """Returns all active employees + the «any» sentinel at the front."""
-        employees = AppointmentRepository.get_all_employees()
+    def get_employees(salon_id: int | None = None) -> list[dict]:
+        """Returns active employees (filtered by salon when provided) + the «any» sentinel."""
+        employees = AppointmentRepository.get_all_employees(salon_id)
         return [{"id": None, "name": "Οποιοσδήποτε διαθέσιμος"}] + employees
 
     @staticmethod
@@ -34,6 +34,7 @@ class AppointmentService:
         date_str: str,
         service_id: int,
         employee_id: int | None,
+        salon_id: int | None = None,
     ) -> list[dict]:
         """
         Returns a list of dicts {time_str, employee_id, employee_name} for slots
@@ -47,13 +48,13 @@ class AppointmentService:
 
         employees: list[dict]
         if employee_id is not None:
-            emp_rows = AppointmentRepository.get_all_employees()
+            emp_rows = AppointmentRepository.get_all_employees(salon_id)
             match = next((e for e in emp_rows if e["id"] == employee_id), None)
             if not match:
                 raise AppointmentError("Ο υπάλληλος δεν βρέθηκε.")
             employees = [match]
         else:
-            employees = AppointmentRepository.get_all_employees()
+            employees = AppointmentRepository.get_all_employees(salon_id)
 
         available: list[dict] = []
         slot_start = datetime.strptime(date_str, "%Y-%m-%d").replace(
@@ -132,7 +133,7 @@ class AppointmentService:
     def get_by_customer(customer_id: int) -> list[AppointmentDetail]:
         return AppointmentRepository.get_by_customer(customer_id)
 
-    # ---------------------------------------------------------------- employee actions (UC 2.3)
+    #  employee actions (UC 2.3)
 
     @staticmethod
     def get_by_employee(employee_id: int) -> list[EmployeeAppointmentDetail]:
