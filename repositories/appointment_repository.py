@@ -12,13 +12,14 @@ class AppointmentRepository:
         service_id: int,
         scheduled_at: str,
         notes: str | None = None,
+        salon_id: int | None = None,
     ) -> int:
         conn = Database.get_connection()
         cur = conn.execute(
             "INSERT INTO appointments "
-            "(customer_id, employee_id, service_id, scheduled_at, status, notes) "
-            "VALUES (?, ?, ?, ?, 'pending', ?)",
-            (customer_id, employee_id, service_id, scheduled_at, notes),
+            "(customer_id, employee_id, service_id, scheduled_at, status, notes, salon_id) "
+            "VALUES (?, ?, ?, ?, 'pending', ?, ?)",
+            (customer_id, employee_id, service_id, scheduled_at, notes, salon_id),
         )
         conn.commit()
         return cur.lastrowid
@@ -28,11 +29,14 @@ class AppointmentRepository:
         rows = Database.get_connection().execute(
             """
             SELECT a.id, a.service_id, a.employee_id, a.scheduled_at, a.status, a.notes,
+                   a.salon_id,
                    s.name  AS service_name, s.duration_min, s.price,
-                   u.first_name || ' ' || u.last_name AS employee_name
+                   u.first_name || ' ' || u.last_name AS employee_name,
+                   sl.name AS salon_name
               FROM appointments a
-              JOIN services s ON s.id = a.service_id
-              JOIN users    u ON u.id = a.employee_id
+              JOIN services s  ON s.id  = a.service_id
+              JOIN users    u  ON u.id  = a.employee_id
+              LEFT JOIN salons sl ON sl.id = a.salon_id
              WHERE a.customer_id = ?
              ORDER BY a.scheduled_at DESC
             """,
@@ -49,6 +53,8 @@ class AppointmentRepository:
             scheduled_at=r["scheduled_at"],
             status=r["status"],
             notes=r["notes"],
+            salon_id=r["salon_id"],
+            salon_name=r["salon_name"],
         ) for r in rows]
 
     @staticmethod

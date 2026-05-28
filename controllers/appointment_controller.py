@@ -10,8 +10,8 @@ __all__ = ["AppointmentController", "AppointmentError"]
 class AppointmentController:
 
     @staticmethod
-    def get_active_services() -> list[Service]:
-        return AppointmentService.get_active_services()
+    def get_active_services(salon_id: int | None = None) -> list[Service]:
+        return AppointmentService.get_active_services(salon_id)
 
     @staticmethod
     def get_employees() -> list[dict]:
@@ -32,9 +32,10 @@ class AppointmentController:
         service_id: int,
         start_iso: str,
         notes: str | None = None,
+        salon_id: int | None = None,
     ) -> int:
         return AppointmentService.create_appointment(
-            customer_id, employee_id, service_id, start_iso, notes
+            customer_id, employee_id, service_id, start_iso, notes, salon_id
         )
 
     @staticmethod

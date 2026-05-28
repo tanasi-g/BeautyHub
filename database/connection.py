@@ -45,6 +45,7 @@ class Database:
         conn = cls.get_connection()
         for ddl in [
             "ALTER TABLE orders ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cod'",
+            "ALTER TABLE appointments ADD COLUMN salon_id INTEGER REFERENCES salons(id)",
         ]:
             try:
                 conn.execute(ddl)

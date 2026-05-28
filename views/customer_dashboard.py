@@ -27,9 +27,9 @@ class CustomerDashboard(BaseDashboard):
         nav = self._show_page
         appts_page = _AppointmentsPage(self._content)
 
-        def _start_booking():
+        def _start_booking(salon=None):
             nav("appointments")
-            appts_page._go_svc()
+            appts_page._go_svc(salon)
 
         self._register_page("home",          _HomePage(self._content))
         self._register_page("salons",        _SalonSearchPage(self._content, _start_booking))
@@ -286,6 +286,7 @@ class _SalonSearchPage(ctk.CTkFrame):
 
     def _open_profile(self, salon):
         #"""Βήμα 5 — ανάκτηση και εμφάνιση προφίλ κομμωτηρίου."""
+        self._profile_salon = salon
         self._profile_title.configure(text=salon.name)
 
         # info card fields
@@ -352,7 +353,7 @@ class _SalonSearchPage(ctk.CTkFrame):
 
     def _book_appointment(self):
         if self._start_booking:
-         self._start_booking()
+            self._start_booking(getattr(self, "_profile_salon", None))
 
 
 #  E-Shop Store — UC 2.11  
@@ -1389,6 +1390,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._sel_service   = None   # Service object
         self._sel_employee  = None   # dict {id, name}  (id may be None = «any»)
         self._sel_slot      = None   # dict {time_str, start_iso, employee_id, employee_name}
+        self._booking_salon = None   # Salon model (from salon search), or None for generic booking
         self._cal_date      = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
 
         # modification state — UC 2.12
@@ -1509,6 +1511,8 @@ class _AppointmentsPage(ctk.CTkFrame):
                 f"Διάρκεια: {appt.duration_min} λεπτά   |   "
                 f"Τιμή: {appt.price:.2f} €"
             )
+            if appt.salon_name:
+                details += f"   |   Κομμωτήριο: {appt.salon_name}"
             if appt.notes:
                 details += f"   |   Σημείωση: {appt.notes}"
             ctk.CTkLabel(
@@ -1563,15 +1567,24 @@ class _AppointmentsPage(ctk.CTkFrame):
             hdr, text="Βήμα 1 — Επιλογή Υπηρεσίας",
        font=ctk.CTkFont(size=18, weight="bold"),
         ).grid(row=0, column=1, sticky="w", padx=20)
+        self._svc_salon_lbl = ctk.CTkLabel(
+            hdr, text="",
+            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=13),
+        )
+        self._svc_salon_lbl.grid(row=0, column=2, sticky="e", padx=(0, 8))
 
         self._svc_cards = ctk.CTkScrollableFrame(self._svc_frame, corner_radius=10)
         self._svc_cards.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._svc_cards.columnconfigure(0, weight=1)
 
-    def _go_svc(self):
-        self._sel_service  = None
-        self._sel_employee = None
-        self._sel_slot     = None
+    def _go_svc(self, salon=None):
+        self._sel_service   = None
+        self._sel_employee  = None
+        self._sel_slot      = None
+        self._booking_salon = salon
+        self._svc_salon_lbl.configure(
+            text=f"📍  {salon.name}" if salon else ""
+        )
         self._hide_all()
         self._svc_frame.grid(row=0, column=0, sticky="nsew")
         self._load_svc_cards()
@@ -1580,7 +1593,8 @@ class _AppointmentsPage(ctk.CTkFrame):
         for w in self._svc_cards.winfo_children():
             w.destroy()
 
-        services = AppointmentController.get_active_services()
+        salon_id = self._booking_salon.id if self._booking_salon else None
+        services = AppointmentController.get_active_services(salon_id)
         if not services:
             ctk.CTkLabel(
                 self._svc_cards,
@@ -1634,6 +1648,11 @@ class _AppointmentsPage(ctk.CTkFrame):
             hdr, text="Βήμα 2 — Επιλογή Υπαλλήλου",
             font=ctk.CTkFont(size=18, weight="bold"),
         ).grid(row=0, column=1, sticky="w", padx=20)
+        self._emp_salon_lbl = ctk.CTkLabel(
+            hdr, text="",
+            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=13),
+        )
+        self._emp_salon_lbl.grid(row=0, column=2, sticky="e", padx=(0, 8))
 
         self._emp_cards = ctk.CTkScrollableFrame(self._emp_frame, corner_radius=10)
         self._emp_cards.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
@@ -1642,6 +1661,9 @@ class _AppointmentsPage(ctk.CTkFrame):
     def _go_emp(self):
         self._sel_employee = None
         self._sel_slot     = None
+        self._emp_salon_lbl.configure(
+            text=f"📍  {self._booking_salon.name}" if self._booking_salon else ""
+        )
         self._hide_all()
         self._emp_frame.grid(row=0, column=0, sticky="nsew")
         self._load_emp_cards()
@@ -1690,6 +1712,11 @@ class _AppointmentsPage(ctk.CTkFrame):
             font=ctk.CTkFont(size=18, weight="bold"),
         )
         self._cal_title_label.grid(row=0, column=1, sticky="w", padx=20)
+        self._cal_salon_lbl = ctk.CTkLabel(
+            hdr, text="",
+            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=13),
+        )
+        self._cal_salon_lbl.grid(row=0, column=2, sticky="e", padx=(0, 8))
 
         # week navigation
         week_nav = ctk.CTkFrame(self._cal_frame, corner_radius=8)
@@ -1722,6 +1749,9 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cal_mode = "new"
         self._cal_back_action = self._go_emp
         self._cal_title_label.configure(text="Βήμα 3 — Επιλογή Ημερομηνίας & Ώρας")
+        self._cal_salon_lbl.configure(
+            text=f"📍  {self._booking_salon.name}" if self._booking_salon else ""
+        )
         self._hide_all()
         self._cal_frame.grid(row=0, column=0, sticky="nsew")
         self._render_week()
@@ -1730,6 +1760,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cal_mode = "mod"
         self._cal_back_action = self._go_mod_detail
         self._cal_title_label.configure(text="Νέα Ημερομηνία & Ώρα")
+        self._cal_salon_lbl.configure(text="")
         self._mod_cal_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         self._hide_all()
         self._cal_frame.grid(row=0, column=0, sticky="nsew")
@@ -1895,16 +1926,17 @@ class _AppointmentsPage(ctk.CTkFrame):
 
     def _go_confirm(self):
         slot = self._sel_slot
-        emp_name = slot["employee_name"] if self._sel_employee["id"] is not None else slot["employee_name"]
-        self._confirm_details.configure(
-            text=(
-                f"Υπηρεσία:    {self._sel_service.name}\n"
-                f"Υπάλληλος:  {emp_name}\n"
-                f"Ημερομηνία: {slot['start_iso']}\n"
-                f"Διάρκεια:    {self._sel_service.duration_min} λεπτά\n"
-                f"Κόστος:       {self._sel_service.price:.2f} €"
-            )
+        emp_name = slot["employee_name"]
+        details = (
+            f"Υπηρεσία:       {self._sel_service.name}\n"
+            f"Υπάλληλος:     {emp_name}\n"
+            f"Ημερομηνία:    {slot['start_iso']}\n"
+            f"Διάρκεια:       {self._sel_service.duration_min} λεπτά\n"
+            f"Κόστος:          {self._sel_service.price:.2f} €"
         )
+        if self._booking_salon:
+            details += f"\nΚομμωτήριο:  {self._booking_salon.name}"
+        self._confirm_details.configure(text=details)
         self._notes_entry.delete(0, "end")
         self._confirm_msg.set("")
         self._hide_all()
@@ -1914,6 +1946,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         user  = Session.current_user()
         slot  = self._sel_slot
         notes = self._notes_entry.get().strip() or None
+        salon_id = self._booking_salon.id if self._booking_salon else None
         try:
             AppointmentController.create_appointment(
                 customer_id=user.id,
@@ -1921,6 +1954,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                 service_id=self._sel_service.id,
                 start_iso=slot["start_iso"],
                 notes=notes,
+                salon_id=salon_id,
             )
             self._list_msg_var.set("✔ Το ραντεβού κλείστηκε επιτυχώς!")
             self.after(5000, lambda: self._list_msg_var.set(""))

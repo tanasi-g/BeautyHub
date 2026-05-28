@@ -5,6 +5,7 @@ from models.appointment import AppointmentDetail, EmployeeAppointmentDetail
 from models.service import Service
 from repositories.appointment_repository import AppointmentRepository
 from repositories.notification_repository import NotificationRepository
+from repositories.salon_service_repository import SalonServiceRepository
 from repositories.service_repository import ServiceRepository
 from services.errors import AppointmentError
 
@@ -16,7 +17,10 @@ _SLOT_MIN   = 30  # minutes between slot starts
 class AppointmentService:
 
     @staticmethod
-    def get_active_services() -> list[Service]:
+    def get_active_services(salon_id: int | None = None) -> list[Service]:
+        if salon_id is not None:
+            # return only services assigned to this salon that are also active
+            return [s for s in SalonServiceRepository.get_assigned(salon_id) if s.is_active]
         return [s for s in ServiceRepository.get_all() if s.is_active]
 
     @staticmethod
@@ -83,6 +87,7 @@ class AppointmentService:
         service_id: int,
         start_iso: str,
         notes: str | None = None,
+        salon_id: int | None = None,
     ) -> int:
         service = ServiceRepository.get_by_id(service_id)
         if not service:
@@ -103,9 +108,10 @@ class AppointmentService:
             service_id=service_id,
             scheduled_at=start_iso,
             notes=notes,
+            salon_id=salon_id,
         )
 
-        # step 9 — notify the customer
+        # notify the customer
         NotificationRepository.create(
             customer_id,
             f"Το ραντεβού σας για «{service.name}» "

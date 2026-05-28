@@ -55,13 +55,15 @@ CREATE TABLE IF NOT EXISTS appointments (
     customer_id INTEGER NOT NULL,
     employee_id INTEGER NOT NULL,
     service_id  INTEGER NOT NULL,
+    salon_id    INTEGER,
     scheduled_at TEXT   NOT NULL,
     status      TEXT    NOT NULL DEFAULT 'pending',  -- pending | confirmed | done | cancelled
     notes       TEXT,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (customer_id) REFERENCES users(id),
     FOREIGN KEY (employee_id) REFERENCES users(id),
-    FOREIGN KEY (service_id)  REFERENCES services(id)
+    FOREIGN KEY (service_id)  REFERENCES services(id),
+    FOREIGN KEY (salon_id)    REFERENCES salons(id)
 );
 
 CREATE TABLE IF NOT EXISTS notifications (

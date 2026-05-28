@@ -13,6 +13,8 @@ class AppointmentDetail:
     scheduled_at: str  # "YYYY-MM-DD HH:MM"
     status: str
     notes: str | None
+    salon_id: int | None = None
+    salon_name: str | None = None
 
 
 @dataclass
