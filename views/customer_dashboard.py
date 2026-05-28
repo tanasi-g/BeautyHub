@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from PIL import Image
 from services.errors import OrderError
 from services.errors import RefundError
 from views.base_dashboard import BaseDashboard
@@ -49,7 +50,12 @@ class _HomePage(ctk.CTkFrame):
 
         box = ctk.CTkFrame(self, corner_radius=16)
         box.grid(row=0, column=0)
-        ctk.CTkLabel(box, text="", font=ctk.CTkFont(size=52)).pack(pady=(32, 8))
+        logo = ctk.CTkImage(
+            light_image=Image.open("resources/logo.jpeg"),
+            dark_image=Image.open("resources/logo.jpeg"),
+            size=(150, 80),
+        )
+        ctk.CTkLabel(box, image=logo, text="").pack(pady=(32, 8))
         ctk.CTkLabel(
             box, text="Καλωσήρθατε στο BeautyHub!",
             font=ctk.CTkFont(size=20, weight="bold"),
