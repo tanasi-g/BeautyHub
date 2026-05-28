@@ -53,10 +53,10 @@ class AdminDashboard(BaseDashboard):
 
 class _HomePage(ctk.CTkFrame):
     _STATS = [
-        ("🏪", "Κομμωτήρια", lambda: 0),
-        ("👥", "Χρήστες",    lambda: AuthController.count_users()),
-        ("💇", "Υπηρεσίες",  lambda: 0),
-        ("📅", "Ραντεβού",   lambda: 0),
+        (" ", "Κομμωτήρια", lambda: 0),
+        (" ", "Χρήστες",    lambda: AuthController.count_users()),
+        (" ", "Υπηρεσίες",  lambda: 0),
+        (" ", "Ραντεβού",   lambda: 0),
     ]
 
     def __init__(self, master):
@@ -693,7 +693,7 @@ class _EShopPage(ctk.CTkFrame):
             self._form_msg.set(str(e))
 
 _ADMIN_STATUS_MAP = {
-    'pending':   ("⏳ Εκκρεμεί",      _WARNING),
+    'pending':   (" Εκκρεμεί",      _WARNING),
     'confirmed': ("✔ Επιβεβαιωμένο",  _SUCCESS),
     'done':      ("✔ Ολοκληρώθηκε",   _SUCCESS),
     'cancelled': ("✘ Ακυρώθηκε",      _ERROR),

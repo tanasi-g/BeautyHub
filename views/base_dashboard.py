@@ -25,7 +25,7 @@ class BaseDashboard(ctk.CTkFrame):
         if self.NAV_ITEMS:
             self._show_page(self.NAV_ITEMS[0][1])
 
-    # ---------------------------------------------------------------- sidebar
+    #  sidebar
     def _build_sidebar(self):
         sidebar = ctk.CTkFrame(self, width=self.SIDEBAR_WIDTH, corner_radius=0)
         sidebar.grid(row=0, column=0, sticky="nsew")
@@ -100,7 +100,7 @@ class BaseDashboard(ctk.CTkFrame):
         self._content.columnconfigure(0, weight=1)
         self._content.rowconfigure(0, weight=1)
 
-    # ---------------------------------------------------------------- pages
+    #  pages
     def _build_pages(self):
         """Υποκλάσεις υλοποιούν αυτή τη μέθοδο και καλούν _register_page()."""
 
@@ -146,13 +146,13 @@ class BaseDashboard(ctk.CTkFrame):
             return
         base_label = next(
             (lbl for lbl, k in self.NAV_ITEMS if k == "notifications"),
-            "🔔  Ειδοποιήσεις",
+            "  Ειδοποιήσεις",
         )
         btn.configure(
             text=f"{base_label}  ({count})" if count > 0 else base_label
         )
 
-    # ---------------------------------------------------------------- logout
+    #  logout
     def _do_logout(self):
         Session.logout()
         self._on_logout()

@@ -441,15 +441,3 @@ class _HomePage(ctk.CTkFrame):
             justify="center",
         ).pack(pady=(8, 32), padx=40)
 
-
-class _PlaceholderPage(ctk.CTkFrame):
-    def __init__(self, master, title: str):
-        super().__init__(master, fg_color="transparent")
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        ctk.CTkLabel(
-            self, text=f"{title}\n\nΈρχεται σύντομα…",
-            font=ctk.CTkFont(size=18),
-            text_color="gray",
-            justify="center",
-        ).grid(row=0, column=0)
