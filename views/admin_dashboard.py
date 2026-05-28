@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from controllers.appointment_controller import AppointmentController
 from controllers.salon_controller import SalonController
 from services.errors import SalonError
 from views.base_dashboard import BaseDashboard
@@ -43,7 +44,7 @@ class AdminDashboard(BaseDashboard):
         self._register_page("users",         _UsersPage(self._content))
         self._register_page("services",      _ServicesPage(self._content))
         self._register_page("eshop",         _EShopPage(self._content))
-        self._register_page("appointments",  _PlaceholderPage(self._content, "Ραντεβού"))
+        self._register_page("appointments",  _AppointmentsPage(self._content))
         self._register_page("inventory",     _InventoryPage(self._content))
         self._register_page("notifications", NotificationsPage(self._content))
 
@@ -691,17 +692,160 @@ class _EShopPage(ctk.CTkFrame):
             self._form_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
             self._form_msg.set(str(e))
 
-class _PlaceholderPage(ctk.CTkFrame):
-    def __init__(self, master, title: str):
+_ADMIN_STATUS_MAP = {
+    'pending':   ("⏳ Εκκρεμεί",      _WARNING),
+    'confirmed': ("✔ Επιβεβαιωμένο",  _SUCCESS),
+    'done':      ("✔ Ολοκληρώθηκε",   _SUCCESS),
+    'cancelled': ("✘ Ακυρώθηκε",      _ERROR),
+}
+
+_ALL_LABEL = "Όλες"
+
+class _AppointmentsPage(ctk.CTkFrame):
+    _COLS = ["#", "Ημερομηνία / Ώρα", "Πελάτης", "Υπάλληλος", "Υπηρεσία", "Διάρκεια", "Τιμή", "Κατάσταση"]
+
+    def __init__(self, master):
         super().__init__(master, fg_color="transparent")
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
+        self._all_rows: list[dict] = []
+        self._build()
+
+    def _build(self):
+        # header
+        hdr = ctk.CTkFrame(self, fg_color="transparent")
+        hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 8))
         ctk.CTkLabel(
-            self, text=f"{title}\n\nΈρχεται σύντομα…",
-            font=ctk.CTkFont(size=18),
-            text_color="gray",
-            justify="center",
-        ).grid(row=0, column=0)
+            hdr, text="Ραντεβού — Συνολική Εικόνα",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        ).pack(side="left")
+
+        # filter bar
+        bar = ctk.CTkFrame(self, corner_radius=10, fg_color=_CARD_BG,
+                           border_width=1, border_color=_BORDER)
+        bar.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 8))
+
+        ctk.CTkLabel(bar, text="Κατάσταση:", anchor="w").pack(side="left", padx=(16, 6), pady=12)
+        self._status_combo = ctk.CTkComboBox(
+            bar,
+            values=[_ALL_LABEL, "Εκκρεμεί", "Επιβεβαιωμένο", "Ολοκληρώθηκε", "Ακυρώθηκε"],
+            width=180, state="readonly",
+            command=lambda _: self._apply_filters(),
+        )
+        self._status_combo.set(_ALL_LABEL)
+        self._status_combo.pack(side="left", padx=(0, 16), pady=12)
+
+        ctk.CTkLabel(bar, text="Υπάλληλος:", anchor="w").pack(side="left", padx=(0, 6), pady=12)
+        self._emp_combo = ctk.CTkComboBox(
+            bar, values=[_ALL_LABEL], width=200, state="readonly",
+            command=lambda _: self._apply_filters(),
+        )
+        self._emp_combo.set(_ALL_LABEL)
+        self._emp_combo.pack(side="left", padx=(0, 16), pady=12)
+
+        ctk.CTkButton(
+            bar, text="✕ Καθαρισμός", width=120,
+            fg_color="transparent", border_width=1,
+            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            command=self._clear_filters,
+        ).pack(side="left", padx=(0, 16), pady=12)
+
+        self._count_label = ctk.CTkLabel(bar, text="", text_color=_SUBTEXT, font=ctk.CTkFont(size=12))
+        self._count_label.pack(side="right", padx=16, pady=12)
+
+        # table
+        self._table = ctk.CTkScrollableFrame(self, corner_radius=10, fg_color=_CARD_BG)
+        self._table.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
+        for i in range(len(self._COLS)):
+            self._table.columnconfigure(i, weight=1)
+
+    def refresh(self):
+        self._all_rows = AppointmentController.get_all()
+        self._refresh_employee_combo()
+        self._apply_filters()
+
+    def _refresh_employee_combo(self):
+        names = sorted({r["employee_name"] for r in self._all_rows})
+        self._emp_combo.configure(values=[_ALL_LABEL] + names)
+        self._emp_combo.set(_ALL_LABEL)
+
+    def _clear_filters(self):
+        self._status_combo.set(_ALL_LABEL)
+        self._emp_combo.set(_ALL_LABEL)
+        self._apply_filters()
+
+    def _apply_filters(self):
+        status_sel = self._status_combo.get()
+        emp_sel    = self._emp_combo.get()
+
+        _gr_to_key = {
+            "Εκκρεμεί":       "pending",
+            "Επιβεβαιωμένο":  "confirmed",
+            "Ολοκληρώθηκε":   "done",
+            "Ακυρώθηκε":      "cancelled",
+        }
+        status_key = _gr_to_key.get(status_sel)
+
+        rows = self._all_rows
+        if status_key:
+            rows = [r for r in rows if r["status"] == status_key]
+        if emp_sel != _ALL_LABEL:
+            rows = [r for r in rows if r["employee_name"] == emp_sel]
+
+        self._render(rows)
+
+    def _render(self, rows: list[dict]):
+        for w in self._table.winfo_children():
+            w.destroy()
+
+        self._count_label.configure(text=f"Σύνολο: {len(rows)}")
+
+        if not rows:
+            ctk.CTkLabel(
+                self._table,
+                text="Δεν βρέθηκαν ραντεβού με τα επιλεγμένα κριτήρια.",
+                text_color=_SUBTEXT,
+            ).grid(row=0, column=0, columnspan=len(self._COLS), pady=36)
+            return
+
+        for col, h in enumerate(self._COLS):
+            ctk.CTkLabel(
+                self._table, text=h,
+                font=ctk.CTkFont(weight="bold"), anchor="w",
+                text_color=_TEXT,
+            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
+        ctk.CTkFrame(self._table, height=1, fg_color=_MUTED).grid(
+            row=1, column=0, columnspan=len(self._COLS), sticky="ew", padx=4,
+        )
+
+        for r_idx, appt in enumerate(rows, start=2):
+            bg = _CARD_BG if r_idx % 2 == 0 else _BG
+            status_text, status_color = _ADMIN_STATUS_MAP.get(
+                appt["status"], (appt["status"], ("gray", "gray"))
+            )
+            cells = [
+                str(appt["id"]),
+                appt["scheduled_at"],
+                appt["customer_name"],
+                appt["employee_name"],
+                appt["service_name"],
+                f"{appt['duration_min']} λεπτά",
+                f"{appt['price']:.2f} €",
+            ]
+            for col, val in enumerate(cells):
+                ctk.CTkLabel(
+                    self._table, text=val, anchor="w",
+                    fg_color=bg, corner_radius=4,
+                ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
+
+            ctk.CTkLabel(
+                self._table, text=status_text,
+                text_color=status_color,
+                font=ctk.CTkFont(size=11, weight="bold"),
+                fg_color=bg, corner_radius=4, anchor="w",
+            ).grid(row=r_idx, column=len(self._COLS) - 1, sticky="ew", padx=4, pady=2)
+
+
 
 class _ServicesPage(ctk.CTkFrame):
 
