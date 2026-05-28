@@ -287,9 +287,45 @@ class AppointmentService:
 
         AppointmentRepository.reschedule(appt_id, new_scheduled_at)
 
+        # καθάρισμα τυχόν προηγούμενης πρότασης για το ίδιο ραντεβού
+        NotificationRepository.clear_type_for_appointment(appt_id, "reschedule_proposal")
         NotificationRepository.create(
             appt.customer_id,
-            f"Το ραντεβού σας για «{appt.service_name}» "
-            f"μετατέθηκε στις {new_scheduled_at}. "
-            f"Παρακαλώ επιβεβαιώστε ή απορρίψτε την αλλαγή.",
+            f"Ο κομμωτής πρότεινε αλλαγή του ραντεβού σας για «{appt.service_name}» "
+            f"στις {new_scheduled_at}. "
+            f"Παρακαλώ αποδεχθείτε ή απορρίψτε την αλλαγή.",
+            type="reschedule_proposal",
+            appointment_id=appt_id,
+        )
+
+    @staticmethod
+    def customer_accept_reschedule(appt_id: int, customer_id: int) -> None:
+        appts = AppointmentRepository.get_by_customer(customer_id)
+        appt = next((a for a in appts if a.id == appt_id), None)
+        if not appt:
+            raise AppointmentError("Το ραντεβού δεν βρέθηκε.")
+        if appt.status != "pending":
+            raise AppointmentError("Η πρόταση αλλαγής δεν είναι πλέον ενεργή.")
+        AppointmentRepository.set_status(appt_id, "confirmed")
+        NotificationRepository.clear_type_for_appointment(appt_id, "reschedule_proposal")
+        NotificationRepository.create(
+            appt.employee_id,
+            f"Ο πελάτης αποδέχθηκε την αλλαγή του ραντεβού για «{appt.service_name}» "
+            f"στις {appt.scheduled_at}.",
+        )
+
+    @staticmethod
+    def customer_reject_reschedule(appt_id: int, customer_id: int) -> None:
+        appts = AppointmentRepository.get_by_customer(customer_id)
+        appt = next((a for a in appts if a.id == appt_id), None)
+        if not appt:
+            raise AppointmentError("Το ραντεβού δεν βρέθηκε.")
+        if appt.status != "pending":
+            raise AppointmentError("Η πρόταση αλλαγής δεν είναι πλέον ενεργή.")
+        AppointmentRepository.set_status(appt_id, "cancelled")
+        NotificationRepository.clear_type_for_appointment(appt_id, "reschedule_proposal")
+        NotificationRepository.create(
+            appt.employee_id,
+            f"Ο πελάτης απέρριψε την αλλαγή του ραντεβού για «{appt.service_name}» "
+            f"στις {appt.scheduled_at}. Το ραντεβού ακυρώθηκε.",
         )

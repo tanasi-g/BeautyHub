@@ -1441,8 +1441,13 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         # review state — UC 2.6
         self._rev_appt  = None   # AppointmentDetail being reviewed
-        self._rev_rating = 0     # 1–5, 0 = not yet selected
+        self._rev_rating = 0     # 1–5, 0 = not yet selected (κομμωτής)
         self._star_btns: list[ctk.CTkButton] = []
+        self._rev_salon_rating = 0     # 1–5, 0 = not yet selected (κομμωτήριο)
+        self._salon_star_btns: list[ctk.CTkButton] = []
+        # whether each section is enabled for this appointment (False = already reviewed)
+        self._rev_emp_enabled   = True
+        self._rev_salon_enabled = True
 
 
         self._build_list_frame()
@@ -1564,24 +1569,36 @@ class _AppointmentsPage(ctk.CTkFrame):
                     font=ctk.CTkFont(size=11),
                     command=lambda a=appt: self._go_mod_detail(a),
                 ).pack(side="right")
-            if appt.status == "done" and not ReviewController.exists_for_appointment(appt.id):
-                review_footer = ctk.CTkFrame(card, fg_color="transparent")
-                review_footer.pack(fill="x", padx=12, pady=(0, 10))
-                ctk.CTkButton(
-                    review_footer, text="⭐ Αξιολόγηση", width=140, height=28,
-                    fg_color=("#f39c12", "#d68910"), hover_color=("#d68910", "#b7770d"),
-                    font=ctk.CTkFont(size=11),
-                    command=lambda a=appt: self._go_review_form(a),
-                ).pack(side="right")
+            if appt.status == "done":
+                emp_done   = ReviewController.exists_for_appointment(appt.id)
+                salon_done = (
+                    appt.salon_id is not None
+                    and ReviewController.salon_exists_for_appointment(appt.id)
+                )
+                salon_pending = appt.salon_id is not None and not salon_done
+                emp_pending   = not emp_done
 
-            if appt.status == "done" and ReviewController.exists_for_appointment(appt.id):
-                ctk.CTkLabel(
-                    card,
-                    text="✔ Έχετε αξιολογήσει αυτό το ραντεβού.",
-                    text_color=("gray50", "gray60"),
-                    font=ctk.CTkFont(size=11),
-                    anchor="e",
-                ).pack(fill="x", padx=20, pady=(0, 8))
+                if emp_pending or salon_pending:
+                    review_footer = ctk.CTkFrame(card, fg_color="transparent")
+                    review_footer.pack(fill="x", padx=12, pady=(0, 10))
+                    ctk.CTkButton(
+                        review_footer, text="⭐ Αξιολόγηση", width=140, height=28,
+                        fg_color=("#f39c12", "#d68910"), hover_color=("#d68910", "#b7770d"),
+                        font=ctk.CTkFont(size=11),
+                        command=lambda a=appt: self._go_review_form(a),
+                    ).pack(side="right")
+                else:
+                    msg_parts = ["✔ Έχετε αξιολογήσει τον κομμωτή"]
+                    if appt.salon_id is not None:
+                        msg_parts[0] += " και το κομμωτήριο"
+                    msg_parts[0] += "."
+                    ctk.CTkLabel(
+                        card,
+                        text=msg_parts[0],
+                        text_color=("gray50", "gray60"),
+                        font=ctk.CTkFont(size=11),
+                        anchor="e",
+                    ).pack(fill="x", padx=20, pady=(0, 8))
 
     #STEP 1 
     def _build_svc_frame(self):
@@ -2267,13 +2284,12 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._review_form_frame.columnconfigure(0, weight=1)
         self._review_form_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._review_form_frame, corner_radius=16)
+        card = ctk.CTkScrollableFrame(self._review_form_frame, corner_radius=16, width=560, height=620)
         card.grid(row=0, column=0)
-        card.columnconfigure(0, weight=1)
 
         # header
         hdr = ctk.CTkFrame(card, fg_color="transparent")
-        hdr.grid(row=0, column=0, sticky="ew", padx=52, pady=(32, 0))
+        hdr.pack(fill="x", padx=52, pady=(20, 0))
         hdr.columnconfigure(1, weight=1)
         ctk.CTkButton(
             hdr, text="← Πίσω", width=100,
@@ -2282,7 +2298,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             command=self._go_list,
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
-            hdr, text="⭐  Αξιολόγηση Υπηρεσίας",
+            hdr, text="⭐  Αξιολόγηση Ραντεβού",
             font=ctk.CTkFont(size=18, weight="bold"),
         ).grid(row=0, column=1, sticky="w", padx=16)
 
@@ -2291,23 +2307,33 @@ class _AppointmentsPage(ctk.CTkFrame):
             card, text="", justify="left",
             font=ctk.CTkFont(size=13), text_color="gray",
         )
-        self._rev_info_label.grid(row=1, column=0, sticky="w", padx=52, pady=(20, 0))
+        self._rev_info_label.pack(anchor="w", padx=52, pady=(16, 0))
 
-        # star rating row
+        # ── Section: Κομμωτής ─────────────────────────────────────────
+        self._rev_emp_section = ctk.CTkFrame(card, corner_radius=10)
+        self._rev_emp_section.pack(fill="x", padx=40, pady=(20, 4))
+
         ctk.CTkLabel(
-            card, text="Βαθμολογία:", anchor="w",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).grid(row=2, column=0, sticky="w", padx=52, pady=(20, 4))
+            self._rev_emp_section,
+            text="👤  Αξιολόγηση Κομμωτή",
+            anchor="w",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).pack(anchor="w", padx=16, pady=(12, 0))
 
-        star_row = ctk.CTkFrame(card, fg_color="transparent")
-        star_row.grid(row=3, column=0, sticky="w", padx=48)
+        self._rev_emp_target_lbl = ctk.CTkLabel(
+            self._rev_emp_section, text="", text_color="gray",
+            font=ctk.CTkFont(size=12), anchor="w",
+        )
+        self._rev_emp_target_lbl.pack(anchor="w", padx=16, pady=(0, 6))
+
+        emp_star_row = ctk.CTkFrame(self._rev_emp_section, fg_color="transparent")
+        emp_star_row.pack(anchor="w", padx=12)
         self._star_btns = []
         for i in range(1, 6):
             btn = ctk.CTkButton(
-                star_row,
-                text="☆",
-                width=44, height=44,
-                font=ctk.CTkFont(size=28),
+                emp_star_row, text="☆",
+                width=40, height=40,
+                font=ctk.CTkFont(size=26),
                 fg_color="transparent",
                 hover_color=("gray85", "gray25"),
                 text_color=("#f39c12", "#f5b041"),
@@ -2318,19 +2344,92 @@ class _AppointmentsPage(ctk.CTkFrame):
             self._star_btns.append(btn)
 
         self._rev_rating_hint = ctk.CTkLabel(
-            card, text="", text_color="gray", font=ctk.CTkFont(size=11),
+            self._rev_emp_section, text="", text_color="gray",
+            font=ctk.CTkFont(size=11),
         )
-        self._rev_rating_hint.grid(row=4, column=0, sticky="w", padx=52, pady=(2, 0))
+        self._rev_rating_hint.pack(anchor="w", padx=16, pady=(2, 0))
 
-        # comment
         ctk.CTkLabel(
-            card, text="Σχόλιο (προαιρετικό):", anchor="w",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).grid(row=5, column=0, sticky="w", padx=52, pady=(20, 4))
+            self._rev_emp_section, text="Σχόλιο (προαιρετικό):",
+            anchor="w", font=ctk.CTkFont(size=12),
+        ).pack(anchor="w", padx=16, pady=(10, 2))
         self._rev_comment = ctk.CTkEntry(
-            card, width=380, placeholder_text="Γράψτε την εμπειρία σας…",
+            self._rev_emp_section, width=440,
+            placeholder_text="Γράψτε την εμπειρία σας με τον κομμωτή…",
         )
-        self._rev_comment.grid(row=6, column=0, sticky="w", padx=52)
+        self._rev_comment.pack(anchor="w", padx=16, pady=(0, 14))
+
+        self._rev_emp_done_lbl = ctk.CTkLabel(
+            self._rev_emp_section,
+            text="✔ Έχετε ήδη αξιολογήσει τον κομμωτή για αυτό το ραντεβού.",
+            text_color=("gray50", "gray60"),
+            font=ctk.CTkFont(size=12),
+        )
+        # (αναδιπλώνεται μόνο όταν χρειάζεται)
+
+        # ── Section: Κομμωτήριο ───────────────────────────────────────
+        self._rev_salon_section = ctk.CTkFrame(card, corner_radius=10)
+        self._rev_salon_section.pack(fill="x", padx=40, pady=(8, 4))
+
+        ctk.CTkLabel(
+            self._rev_salon_section,
+            text="🏠  Αξιολόγηση Κομμωτηρίου",
+            anchor="w",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).pack(anchor="w", padx=16, pady=(12, 0))
+
+        self._rev_salon_target_lbl = ctk.CTkLabel(
+            self._rev_salon_section, text="", text_color="gray",
+            font=ctk.CTkFont(size=12), anchor="w",
+        )
+        self._rev_salon_target_lbl.pack(anchor="w", padx=16, pady=(0, 6))
+
+        salon_star_row = ctk.CTkFrame(self._rev_salon_section, fg_color="transparent")
+        salon_star_row.pack(anchor="w", padx=12)
+        self._salon_star_btns = []
+        for i in range(1, 6):
+            btn = ctk.CTkButton(
+                salon_star_row, text="☆",
+                width=40, height=40,
+                font=ctk.CTkFont(size=26),
+                fg_color="transparent",
+                hover_color=("gray85", "gray25"),
+                text_color=("#f39c12", "#f5b041"),
+                corner_radius=6,
+                command=lambda n=i: self._set_salon_rating(n),
+            )
+            btn.pack(side="left", padx=2)
+            self._salon_star_btns.append(btn)
+
+        self._rev_salon_rating_hint = ctk.CTkLabel(
+            self._rev_salon_section, text="", text_color="gray",
+            font=ctk.CTkFont(size=11),
+        )
+        self._rev_salon_rating_hint.pack(anchor="w", padx=16, pady=(2, 0))
+
+        ctk.CTkLabel(
+            self._rev_salon_section, text="Σχόλιο (προαιρετικό):",
+            anchor="w", font=ctk.CTkFont(size=12),
+        ).pack(anchor="w", padx=16, pady=(10, 2))
+        self._rev_salon_comment = ctk.CTkEntry(
+            self._rev_salon_section, width=440,
+            placeholder_text="Γράψτε την εμπειρία σας με το κομμωτήριο…",
+        )
+        self._rev_salon_comment.pack(anchor="w", padx=16, pady=(0, 14))
+
+        self._rev_salon_done_lbl = ctk.CTkLabel(
+            self._rev_salon_section,
+            text="✔ Έχετε ήδη αξιολογήσει το κομμωτήριο για αυτό το ραντεβού.",
+            text_color=("gray50", "gray60"),
+            font=ctk.CTkFont(size=12),
+        )
+
+        self._rev_salon_unavailable_lbl = ctk.CTkLabel(
+            self._rev_salon_section,
+            text="(Το ραντεβού δεν συνδέεται με κομμωτήριο.)",
+            text_color=("gray50", "gray60"),
+            font=ctk.CTkFont(size=12),
+        )
 
         # validation message
         self._rev_form_msg = ctk.StringVar()
@@ -2339,13 +2438,13 @@ class _AppointmentsPage(ctk.CTkFrame):
             text_color=("#e74c3c", "#e74c3c"),
             font=ctk.CTkFont(size=12),
         )
-        self._rev_form_msg_label.grid(row=7, column=0, sticky="w", padx=52, pady=(8, 0))
+        self._rev_form_msg_label.pack(anchor="w", padx=52, pady=(12, 0))
 
         # action button
         ctk.CTkButton(
             card, text="Προεπισκόπηση →", width=200,
             command=self._go_review_preview,
-        ).grid(row=8, column=0, pady=(16, 40))
+        ).pack(pady=(16, 28))
 
     def _go_review_form(self, appt=None):
         """Βήμα 3: εμφάνιση φόρμας αξιολόγησης. Alt flow 1: έλεγχος status."""
@@ -2362,24 +2461,82 @@ class _AppointmentsPage(ctk.CTkFrame):
             self._go_list()
             return
 
-        self._rev_info_label.configure(
-            text=(
-                f"Υπηρεσία:    {a.service_name}\n"
-                f"Υπάλληλος:  {a.employee_name}\n"
-                f"Ημερομηνία: {a.scheduled_at}"
-            )
+        info_text = (
+            f"Υπηρεσία:    {a.service_name}\n"
+            f"Υπάλληλος:  {a.employee_name}\n"
+            f"Ημερομηνία: {a.scheduled_at}"
         )
+        if a.salon_name:
+            info_text += f"\nΚομμωτήριο: {a.salon_name}"
+        self._rev_info_label.configure(text=info_text)
+
+        # ── employee section ────────────────────────────────────────
+        emp_done = ReviewController.exists_for_appointment(a.id)
+        self._rev_emp_enabled = not emp_done
+
+        self._rev_emp_target_lbl.configure(text=f"για τον/την {a.employee_name}")
+
         self._rev_rating = 0
         self._update_stars()
         self._rev_comment.delete(0, "end")
+        self._set_section_state(
+            self._star_btns, self._rev_comment,
+            enabled=self._rev_emp_enabled,
+        )
+        if emp_done:
+            self._rev_emp_done_lbl.pack(anchor="w", padx=16, pady=(0, 10))
+        else:
+            self._rev_emp_done_lbl.pack_forget()
+
+        # ── salon section ───────────────────────────────────────────
+        has_salon  = a.salon_id is not None
+        salon_done = (
+            has_salon
+            and ReviewController.salon_exists_for_appointment(a.id)
+        )
+        self._rev_salon_enabled = has_salon and not salon_done
+
+        self._rev_salon_target_lbl.configure(
+            text=f"για το «{a.salon_name}»" if a.salon_name else ""
+        )
+        self._rev_salon_rating = 0
+        self._update_salon_stars()
+        self._rev_salon_comment.delete(0, "end")
+        self._set_section_state(
+            self._salon_star_btns, self._rev_salon_comment,
+            enabled=self._rev_salon_enabled,
+        )
+        # status labels
+        self._rev_salon_done_lbl.pack_forget()
+        self._rev_salon_unavailable_lbl.pack_forget()
+        if not has_salon:
+            self._rev_salon_unavailable_lbl.pack(anchor="w", padx=16, pady=(0, 10))
+        elif salon_done:
+            self._rev_salon_done_lbl.pack(anchor="w", padx=16, pady=(0, 10))
+
         self._rev_form_msg.set("")
 
         self._hide_all()
         self._review_form_frame.grid(row=0, column=0, sticky="nsew")
 
+    def _set_section_state(self, star_btns, comment_entry, *, enabled: bool):
+        state = "normal" if enabled else "disabled"
+        for b in star_btns:
+            b.configure(state=state)
+        comment_entry.configure(state=state)
+
     def _set_rating(self, n: int):
+        if not self._rev_emp_enabled:
+            return
         self._rev_rating = n
         self._update_stars()
+        self._rev_form_msg.set("")
+
+    def _set_salon_rating(self, n: int):
+        if not self._rev_salon_enabled:
+            return
+        self._rev_salon_rating = n
+        self._update_salon_stars()
         self._rev_form_msg.set("")
 
     def _update_stars(self):
@@ -2388,6 +2545,13 @@ class _AppointmentsPage(ctk.CTkFrame):
             btn.configure(text="★" if i <= self._rev_rating else "☆")
         hint = _RATING_LABELS.get(self._rev_rating, "Κάντε κλικ για να επιλέξετε βαθμολογία")
         self._rev_rating_hint.configure(text=hint)
+
+    def _update_salon_stars(self):
+        _RATING_LABELS = {1: "Κακή", 2: "Μέτρια", 3: "Καλή", 4: "Πολύ καλή", 5: "Εξαιρετική"}
+        for i, btn in enumerate(self._salon_star_btns, start=1):
+            btn.configure(text="★" if i <= self._rev_salon_rating else "☆")
+        hint = _RATING_LABELS.get(self._rev_salon_rating, "Κάντε κλικ για να επιλέξετε βαθμολογία")
+        self._rev_salon_rating_hint.configure(text=hint)
 
     # UC 2.6 — REVIEW PREVIEW 
     def _build_review_preview_frame(self):
@@ -2436,34 +2600,61 @@ class _AppointmentsPage(ctk.CTkFrame):
         ).pack(side="left")
 
     def _go_review_preview(self):
-        """Βήμα 6: προεπισκόπηση. Alt flow 3: έλεγχος αν υπάρχει βαθμολογία."""
-        # alt flow 3 — ελλιπή στοιχεία (χωρίς βαθμολογία)
-        if self._rev_rating == 0:
-            self._rev_form_msg.set("⚠  Επιλέξτε βαθμολογία (1–5 αστέρια).")
+        """Βήμα 6: προεπισκόπηση. Alt flow 3: έλεγχος αν υπάρχει τουλάχιστον μία βαθμολογία."""
+        wants_emp   = self._rev_emp_enabled   and self._rev_rating > 0
+        wants_salon = self._rev_salon_enabled and self._rev_salon_rating > 0
+
+        if not wants_emp and not wants_salon:
+            self._rev_form_msg.set(
+                "⚠  Επιλέξτε βαθμολογία (1–5 αστέρια) για τον κομμωτή ή/και το κομμωτήριο."
+            )
             return
 
-        a       = self._rev_appt
-        stars   = "★" * self._rev_rating + "☆" * (5 - self._rev_rating)
-        comment = self._rev_comment.get().strip()
+        a = self._rev_appt
+        lines = [
+            f"Υπηρεσία:    {a.service_name}",
+            f"Υπάλληλος:  {a.employee_name}",
+            f"Ημερομηνία: {a.scheduled_at}",
+        ]
+        if a.salon_name:
+            lines.append(f"Κομμωτήριο: {a.salon_name}")
+        lines.append("")
 
-        self._rev_preview_text.configure(
-            text=(
-                f"Υπηρεσία:    {a.service_name}\n"
-                f"Υπάλληλος:  {a.employee_name}\n"
-                f"Ημερομηνία: {a.scheduled_at}\n"
-                f"Βαθμολογία: {stars}  ({self._rev_rating}/5)\n"
-                f"Σχόλιο:      {comment if comment else '—'}"
-            )
-        )
+        if wants_emp:
+            stars   = "★" * self._rev_rating + "☆" * (5 - self._rev_rating)
+            comment = self._rev_comment.get().strip()
+            lines.append("— Κομμωτής —")
+            lines.append(f"Βαθμολογία: {stars}  ({self._rev_rating}/5)")
+            lines.append(f"Σχόλιο:      {comment if comment else '—'}")
+            lines.append("")
+
+        if wants_salon:
+            stars   = "★" * self._rev_salon_rating + "☆" * (5 - self._rev_salon_rating)
+            comment = self._rev_salon_comment.get().strip()
+            lines.append("— Κομμωτήριο —")
+            lines.append(f"Βαθμολογία: {stars}  ({self._rev_salon_rating}/5)")
+            lines.append(f"Σχόλιο:      {comment if comment else '—'}")
+
+        self._rev_preview_text.configure(text="\n".join(lines))
         self._rev_preview_msg.set("")
         self._hide_all()
         self._review_preview_frame.grid(row=0, column=0, sticky="nsew")
 
     def _submit_review(self):
         """Βήμα 8-9: υποβολή αξιολόγησης."""
-        user    = Session.current_user()
-        a       = self._rev_appt
-        comment = self._rev_comment.get().strip() or None
+        user = Session.current_user()
+        a    = self._rev_appt
+
+        wants_emp   = self._rev_emp_enabled   and self._rev_rating > 0
+        wants_salon = self._rev_salon_enabled and self._rev_salon_rating > 0
+
+        emp_rating    = self._rev_rating if wants_emp else None
+        emp_comment   = (self._rev_comment.get().strip() or None) if wants_emp else None
+        salon_rating  = self._rev_salon_rating if wants_salon else None
+        salon_comment = (
+            self._rev_salon_comment.get().strip() or None
+        ) if wants_salon else None
+
         try:
             ReviewController.submit(
                 appointment_id=a.id,
@@ -2471,11 +2662,20 @@ class _AppointmentsPage(ctk.CTkFrame):
                 employee_id=a.employee_id,
                 service_id=a.service_id,
                 service_name=a.service_name,
-                rating=self._rev_rating,
-                comment=comment,
+                rating=emp_rating,
+                comment=emp_comment,
+                salon_id=a.salon_id if wants_salon else None,
+                salon_rating=salon_rating,
+                salon_comment=salon_comment,
+                salon_name=a.salon_name,
             )
+            parts = []
+            if wants_emp:
+                parts.append("κομμωτή")
+            if wants_salon:
+                parts.append("κομμωτηρίου")
             self._list_msg_var.set(
-                f"✔ Η αξιολόγησή σας για «{a.service_name}» υποβλήθηκε επιτυχώς!"
+                f"✔ Η αξιολόγηση {' και '.join(parts)} υποβλήθηκε επιτυχώς!"
             )
             self.after(6000, lambda: self._list_msg_var.set(""))
             self._go_list()

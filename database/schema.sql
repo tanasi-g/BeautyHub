@@ -71,12 +71,15 @@ CREATE TABLE IF NOT EXISTS appointments (
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id    INTEGER NOT NULL,
-    message    TEXT    NOT NULL,
-    is_read    INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL,
+    message        TEXT    NOT NULL,
+    is_read        INTEGER NOT NULL DEFAULT 0,
+    type           TEXT    NOT NULL DEFAULT 'info',
+    appointment_id INTEGER,
+    created_at     TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (user_id)        REFERENCES users(id),
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id)
 );
 
 --  E-Shop
@@ -126,6 +129,20 @@ CREATE TABLE IF NOT EXISTS reviews (
     FOREIGN KEY (customer_id)    REFERENCES users(id),
     FOREIGN KEY (employee_id)    REFERENCES users(id),
     FOREIGN KEY (service_id)     REFERENCES services(id)
+);
+
+--  Αξιολογήσεις Κομμωτηρίων
+CREATE TABLE IF NOT EXISTS salon_reviews (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    appointment_id INTEGER NOT NULL UNIQUE,
+    customer_id    INTEGER NOT NULL,
+    salon_id       INTEGER NOT NULL,
+    rating         INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+    comment        TEXT,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id),
+    FOREIGN KEY (customer_id)    REFERENCES users(id),
+    FOREIGN KEY (salon_id)       REFERENCES salons(id)
 );
 
 --  Απογραφή Αποθήκης

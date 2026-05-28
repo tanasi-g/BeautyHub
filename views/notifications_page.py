@@ -5,6 +5,7 @@
 from __future__ import annotations
 import customtkinter as ctk
 from controllers.notification_controller import NotificationController
+from controllers.appointment_controller import AppointmentController, AppointmentError
 from utils.session import Session
 
 
@@ -136,6 +137,29 @@ class NotificationsPage(ctk.CTkFrame):
                 command=lambda nid=notif.id: self._mark_one(nid),
             ).pack(side="right")
 
+        # ── action row: αποδοχή / απόρριψη πρότασης αλλαγής ραντεβού ──
+        if notif.type == "reschedule_proposal" and notif.appointment_id:
+            actions = ctk.CTkFrame(card, fg_color="transparent")
+            actions.pack(fill="x", padx=16, pady=(0, 12))
+            ctk.CTkButton(
+                actions,
+                text="✓  Αποδοχή",
+                width=140, height=30,
+                fg_color=("#27ae60", "#1e8449"),
+                hover_color=("#229954", "#196f3d"),
+                command=lambda aid=notif.appointment_id, nid=notif.id:
+                    self._accept_reschedule(aid, nid),
+            ).pack(side="left", padx=(0, 8))
+            ctk.CTkButton(
+                actions,
+                text="✕  Απόρριψη",
+                width=140, height=30,
+                fg_color=("#e74c3c", "#922b21"),
+                hover_color=("#c0392b", "#7b241c"),
+                command=lambda aid=notif.appointment_id, nid=notif.id:
+                    self._reject_reschedule(aid, nid),
+            ).pack(side="left")
+
     # ---------------------------------------------------------------- actions
     def _mark_one(self, notif_id: int):
         NotificationController.mark_read(notif_id)
@@ -147,4 +171,28 @@ class NotificationsPage(ctk.CTkFrame):
             return
         NotificationController.mark_all_read(user.id)
         self._msg_var.set("Όλες οι ειδοποιήσεις σημάνθηκαν ως αναγνωσμένες.")
+        self.refresh()
+
+    def _accept_reschedule(self, appt_id: int, notif_id: int):
+        user = Session.current_user()
+        if not user:
+            return
+        try:
+            AppointmentController.customer_accept_reschedule(appt_id, user.id)
+            NotificationController.mark_read(notif_id)
+            self._msg_var.set("Η νέα ώρα του ραντεβού επιβεβαιώθηκε.")
+        except AppointmentError as e:
+            self._msg_var.set(str(e))
+        self.refresh()
+
+    def _reject_reschedule(self, appt_id: int, notif_id: int):
+        user = Session.current_user()
+        if not user:
+            return
+        try:
+            AppointmentController.customer_reject_reschedule(appt_id, user.id)
+            NotificationController.mark_read(notif_id)
+            self._msg_var.set("Η αλλαγή του ραντεβού απορρίφθηκε.")
+        except AppointmentError as e:
+            self._msg_var.set(str(e))
         self.refresh()

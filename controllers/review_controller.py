@@ -14,8 +14,12 @@ class ReviewController:
         employee_id: int,
         service_id: int,
         service_name: str,
-        rating: int,
+        rating: int | None,
         comment: str | None,
+        salon_id: int | None = None,
+        salon_rating: int | None = None,
+        salon_comment: str | None = None,
+        salon_name: str | None = None,
     ) -> None:
         ReviewService.submit(
             appointment_id=appointment_id,
@@ -25,8 +29,16 @@ class ReviewController:
             service_name=service_name,
             rating=rating,
             comment=comment,
+            salon_id=salon_id,
+            salon_rating=salon_rating,
+            salon_comment=salon_comment,
+            salon_name=salon_name,
         )
 
     @staticmethod
     def exists_for_appointment(appointment_id: int) -> bool:
         return ReviewService.exists_for_appointment(appointment_id)
+
+    @staticmethod
+    def salon_exists_for_appointment(appointment_id: int) -> bool:
+        return ReviewService.salon_exists_for_appointment(appointment_id)

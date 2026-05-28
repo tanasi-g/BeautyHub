@@ -94,3 +94,11 @@ class AppointmentController:
         appt_id: int, customer_id: int, new_scheduled_at: str
     ) -> None:
         AppointmentService.customer_reschedule_appointment(appt_id, customer_id, new_scheduled_at)
+
+    @staticmethod
+    def customer_accept_reschedule(appt_id: int, customer_id: int) -> None:
+        AppointmentService.customer_accept_reschedule(appt_id, customer_id)
+
+    @staticmethod
+    def customer_reject_reschedule(appt_id: int, customer_id: int) -> None:
+        AppointmentService.customer_reject_reschedule(appt_id, customer_id)

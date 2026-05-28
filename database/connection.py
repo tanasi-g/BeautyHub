@@ -47,6 +47,8 @@ class Database:
             "ALTER TABLE appointments ADD COLUMN salon_id INTEGER REFERENCES salons(id)",
             "ALTER TABLE users ADD COLUMN salon_id INTEGER REFERENCES salons(id)",
             "ALTER TABLE salons ADD COLUMN owner_id INTEGER REFERENCES users(id)",
+            "ALTER TABLE notifications ADD COLUMN type TEXT NOT NULL DEFAULT 'info'",
+            "ALTER TABLE notifications ADD COLUMN appointment_id INTEGER REFERENCES appointments(id)",
         ]:
             try:
                 conn.execute(ddl)
