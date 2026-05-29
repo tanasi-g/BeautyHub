@@ -1,4 +1,4 @@
-import customtkinter as ctk
+﻿import customtkinter as ctk
 from controllers.appointment_controller import AppointmentController
 from controllers.salon_controller import SalonController
 from services.errors import SalonError
@@ -30,7 +30,6 @@ class AdminDashboard(BaseDashboard):
     NAV_ITEMS = [
         ("Αρχική",          "home"),
         ("Κομμωτήρια",      "salons"),
-        ("Χρήστες",         "users"),
         ("Υπηρεσίες",       "services"),
         ("E-Shop",           "eshop"),
         ("Ραντεβού",        "appointments"),
@@ -41,7 +40,6 @@ class AdminDashboard(BaseDashboard):
     def _build_pages(self):
         self._register_page("home",          _HomePage(self._content))
         self._register_page("salons",        _SalonsPage(self._content))
-        self._register_page("users",         _UsersPage(self._content))
         self._register_page("services",      _ServicesPage(self._content))
         self._register_page("eshop",         _EShopPage(self._content))
         self._register_page("appointments",  _AppointmentsPage(self._content))
@@ -69,7 +67,7 @@ class _HomePage(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w", padx=32, pady=(32, 4))
         ctk.CTkLabel(
             self, text="Καλωσήρθατε στο σύστημα διαχείρισης κομμωτηρίων.",
-            text_color="gray",
+            text_color=_SUBTEXT,
         ).grid(row=1, column=0, sticky="w", padx=32, pady=(0, 24))
 
         stats_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -79,12 +77,12 @@ class _HomePage(ctk.CTkFrame):
         # αποθηκεύουμε references στις ετικέτες αριθμών για γρήγορη ανανέωση
         self._count_labels: list[ctk.CTkLabel] = []
         for col, (icon, label, _) in enumerate(self._STATS):
-            card = ctk.CTkFrame(stats_frame, corner_radius=12)
+            card = ctk.CTkFrame(stats_frame, corner_radius=12, fg_color=_CARD_BG, border_width=1, border_color=_BORDER)
             card.grid(row=0, column=col, padx=8, pady=8, sticky="ew")
             ctk.CTkLabel(card, text=icon, font=ctk.CTkFont(size=32)).pack(pady=(20, 4))
             lbl = ctk.CTkLabel(card, text="—", font=ctk.CTkFont(size=28, weight="bold"))
             lbl.pack()
-            ctk.CTkLabel(card, text=label, text_color="gray").pack(pady=(0, 20))
+            ctk.CTkLabel(card, text=label, text_color=_SUBTEXT).pack(pady=(0, 20))
             self._count_labels.append(lbl)
 
     def refresh(self):
@@ -186,7 +184,7 @@ class _SalonsPage(ctk.CTkFrame):
 
             # services management button
             ctk.CTkButton(
-                self._table, text="💇 Υπηρεσίες", width=120, height=26,
+                self._table, text="Υπηρεσίες", width=120, height=26,
                 fg_color=_ACCENT, hover_color=_ACCENT_HV,
                 font=ctk.CTkFont(size=11),
                 command=lambda sid=salon.id, sname=salon.name: self._open_services(sid, sname),
@@ -294,7 +292,7 @@ class _SalonsPage(ctk.CTkFrame):
         ctk.CTkLabel(add_row, text="Προσθήκη υπηρεσίας:", anchor="w").grid(
             row=0, column=0, sticky="w", padx=16, pady=12
         )
-        self._svc_combo = ctk.CTkComboBox(add_row, values=[], width=280, state="readonly")
+        self._svc_combo = ctk.CTkComboBox(add_row, values=[], width=280, state="readonly", fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, button_color=_ACCENT, button_hover_color=_ACCENT_HV)
         self._svc_combo.grid(row=0, column=1, padx=8, pady=12)
         ctk.CTkButton(
             add_row, text="+ Προσθήκη", width=120,
@@ -403,62 +401,6 @@ class _SalonsPage(ctk.CTkFrame):
             self._salon_msg.set(str(e))
 
 
-class _UsersPage(ctk.CTkFrame):
-    def __init__(self, master):
-        super().__init__(master, fg_color="transparent")
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
-
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 12))
-        header.columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            header, text="Διαχείριση Χρηστών",
-            font=ctk.CTkFont(size=20, weight="bold"),
-        ).grid(row=0, column=0, sticky="w")
-
-        self._table = ctk.CTkScrollableFrame(self, corner_radius=10)
-        self._table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
-        self._table.columnconfigure((0, 1, 2, 3, 4), weight=1)
-
-        self._load_users()
-
-    def refresh(self):
-        self._load_users()
-
-    def _load_users(self):
-        for w in self._table.winfo_children():
-            w.destroy()
-
-        headers = ["#", "Χρήστης", "Email", "Ρόλος", "Κατάσταση"]
-        for col, h in enumerate(headers):
-            ctk.CTkLabel(
-                self._table, text=h,
-                font=ctk.CTkFont(weight="bold"),
-                anchor="w",
-            ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
-
-        ctk.CTkFrame(self._table, height=1, fg_color="gray40").grid(
-            row=1, column=0, columnspan=5, sticky="ew", padx=4
-        )
-
-        rows = AuthController.get_all_users()
-
-        for r_idx, row in enumerate(rows, start=2):
-            values = [
-                str(row["id"]),
-                row["username"],
-                row["email"],
-                row["display_name"],
-                "✔ Ενεργός" if row["is_active"] else "✘ Ανενεργός",
-            ]
-            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
-            for col, val in enumerate(values):
-                ctk.CTkLabel(
-                    self._table, text=val, anchor="w",
-                    fg_color=bg, corner_radius=4,
-                ).grid(row=r_idx, column=col, sticky="ew", padx=4, pady=2)
-
 
 class _EShopPage(ctk.CTkFrame):
     """Λίστα προϊόντων e-shop + inline φόρμα δημιουργίας."""
@@ -492,7 +434,7 @@ class _EShopPage(ctk.CTkFrame):
             command=self._show_form,
         ).grid(row=0, column=1, sticky="e")
 
-        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10)
+        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10, fg_color=_CARD_BG)
         self._table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
         for i in range(len(self._COLS)):
             self._table.columnconfigure(i, weight=1)
@@ -507,7 +449,7 @@ class _EShopPage(ctk.CTkFrame):
                 font=ctk.CTkFont(weight="bold"), anchor="w",
             ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
 
-        ctk.CTkFrame(self._table, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._table, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=len(self._COLS), sticky="ew", padx=4
         )
 
@@ -517,7 +459,7 @@ class _EShopPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._table,
                 text="Δεν υπάρχουν προϊόντα ακόμα. Πατήστε «+ Νέο Προϊόν».",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=2, column=0, columnspan=len(self._COLS), pady=24)
             return
 
@@ -531,7 +473,7 @@ class _EShopPage(ctk.CTkFrame):
                 str(p.stock),
                 img_label,
             ]
-            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if r_idx % 2 == 0 else _ENTRY_BG
             for col, val in enumerate(values):
                 ctk.CTkLabel(
                     self._table, text=val, anchor="w",
@@ -551,7 +493,8 @@ class _EShopPage(ctk.CTkFrame):
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
 
-        card = ctk.CTkFrame(self._form_frame, corner_radius=12)
+        card = ctk.CTkFrame(self._form_frame, corner_radius=12,
+                            fg_color=_CARD_BG, border_width=1, border_color=_BORDER)
         card.grid(row=1, column=0, sticky="ew", padx=32, pady=12)
         card.columnconfigure(1, weight=1)
 
@@ -565,7 +508,7 @@ class _EShopPage(ctk.CTkFrame):
             ctk.CTkLabel(card, text=label, anchor="w").grid(
                 row=row_idx, column=0, sticky="w", padx=(20, 12), pady=(14, 2)
             )
-            entry = ctk.CTkEntry(card, placeholder_text=ph, height=36)
+            entry = ctk.CTkEntry(card, placeholder_text=ph, height=36, fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
             entry.grid(row=row_idx, column=1, sticky="ew", padx=(0, 20), pady=(14, 2))
             setattr(self, attr, entry)
 
@@ -580,21 +523,21 @@ class _EShopPage(ctk.CTkFrame):
 
         self._img_label = ctk.CTkLabel(
             img_frame, text="Δεν έχει επιλεγεί εικόνα",
-            text_color="gray", anchor="w",
+            text_color=_SUBTEXT, anchor="w",
         )
         self._img_label.grid(row=0, column=0, sticky="w")
 
         self._img_msg = ctk.StringVar()
         self._img_msg_label = ctk.CTkLabel(
             img_frame, textvariable=self._img_msg,
-            font=ctk.CTkFont(size=11), text_color=("#e74c3c", "#e74c3c"),
+            font=ctk.CTkFont(size=11), text_color=_ERROR,
             wraplength=300, anchor="w",
         )
         self._img_msg_label.grid(row=1, column=0, sticky="w")
 
         ctk.CTkButton(
             img_frame, text="Επιλογή εικόνας", width=160, height=32,
-            fg_color=("gray70", "gray30"), hover_color=("gray60", "gray40"),
+            fg_color=_ACCENT_HV, hover_color=_ACCENT,
             command=self._pick_image,
         ).grid(row=0, column=1, padx=(12, 0))
 
@@ -617,12 +560,13 @@ class _EShopPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="Ακύρωση", width=110,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"),
-            hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT,
+            hover_color=_MUTED,
             command=self._cancel_form,
         ).pack(side="left", padx=(0, 10))
         ctk.CTkButton(
             btn_row, text="Αποθήκευση", width=130,
+            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
             command=self._submit_form,
         ).pack(side="left")
 
@@ -642,12 +586,12 @@ class _EShopPage(ctk.CTkFrame):
             saved = EShopController.upload_image(path)
             self._pending_image = saved
             self._img_label.configure(
-                text=Path(saved).name, text_color=("#27ae60", "#2ecc71")
+                text=Path(saved).name, text_color=_SUCCESS
             )
         except EShopError as e:
             self._pending_image = None
             self._img_label.configure(
-                text="Αποτυχία — επιλέξτε άλλη εικόνα", text_color=("gray40", "gray60")
+                text="Αποτυχία — επιλέξτε άλλη εικόνα", text_color=_SUBTEXT
             )
             self._img_msg.set(str(e))
 
@@ -665,10 +609,10 @@ class _EShopPage(ctk.CTkFrame):
         for attr in ("_p_name", "_p_desc", "_p_price", "_p_stock"):
             getattr(self, attr).delete(0, "end")
         self._pending_image = None
-        self._img_label.configure(text="Δεν έχει επιλεγεί εικόνα", text_color="gray")
+        self._img_label.configure(text="Δεν έχει επιλεγεί εικόνα", text_color=_SUBTEXT)
         self._img_msg.set("")
         self._form_msg.set("")
-        self._form_msg_label.configure(text_color=("gray40", "gray60"))
+        self._form_msg_label.configure(text_color=_SUBTEXT)
         self._form_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
 
     # actions
@@ -685,11 +629,11 @@ class _EShopPage(ctk.CTkFrame):
                 stock=self._p_stock.get(),
                 image_path=self._pending_image,
             )
-            self._form_msg_label.configure(text_color=("#27ae60", "#2ecc71"))
+            self._form_msg_label.configure(text_color=_SUCCESS)
             self._form_msg.set("Το προϊόν δημιουργήθηκε επιτυχώς!")
             self.after(1200, self._show_list)
         except EShopError as e:
-            self._form_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+            self._form_msg_label.configure(text_color=_ERROR)
             self._form_msg.set(str(e))
 
 _ADMIN_STATUS_MAP = {
@@ -730,6 +674,8 @@ class _AppointmentsPage(ctk.CTkFrame):
             bar,
             values=[_ALL_LABEL, "Εκκρεμεί", "Επιβεβαιωμένο", "Ολοκληρώθηκε", "Ακυρώθηκε"],
             width=180, state="readonly",
+            fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT,
+            button_color=_ACCENT, button_hover_color=_ACCENT_HV,
             command=lambda _: self._apply_filters(),
         )
         self._status_combo.set(_ALL_LABEL)
@@ -738,6 +684,8 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkLabel(bar, text="Υπάλληλος:", anchor="w").pack(side="left", padx=(0, 6), pady=12)
         self._emp_combo = ctk.CTkComboBox(
             bar, values=[_ALL_LABEL], width=200, state="readonly",
+            fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT,
+            button_color=_ACCENT, button_hover_color=_ACCENT_HV,
             command=lambda _: self._apply_filters(),
         )
         self._emp_combo.set(_ALL_LABEL)
@@ -746,7 +694,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             bar, text="✕ Καθαρισμός", width=120,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._clear_filters,
         ).pack(side="left", padx=(0, 16), pady=12)
 
@@ -821,7 +769,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         for r_idx, appt in enumerate(rows, start=2):
             bg = _CARD_BG if r_idx % 2 == 0 else _BG
             status_text, status_color = _ADMIN_STATUS_MAP.get(
-                appt["status"], (appt["status"], ("gray", "gray"))
+                appt["status"], (appt["status"], _SUBTEXT)
             )
             cells = [
                 str(appt["id"]),
@@ -873,11 +821,12 @@ class _ServicesPage(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkButton(
             hdr, text="+ Νέα Υπηρεσία", width=150,
+            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
             command=self._show_form,
         ).grid(row=0, column=1, sticky="e")
 
         # scrollable table
-        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10)
+        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10, fg_color=_CARD_BG)
         self._table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._table.columnconfigure((0, 1, 2, 3, 4), weight=1)
 
@@ -892,7 +841,7 @@ class _ServicesPage(ctk.CTkFrame):
                 font=ctk.CTkFont(weight="bold"), anchor="w",
             ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
 
-        ctk.CTkFrame(self._table, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._table, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=5, sticky="ew", padx=4
         )
 
@@ -902,7 +851,7 @@ class _ServicesPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._table,
                 text="Δεν υπάρχουν υπηρεσίες ακόμα. Πατήστε «+ Νέα Υπηρεσία».",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=2, column=0, columnspan=5, pady=24)
             return
 
@@ -914,7 +863,7 @@ class _ServicesPage(ctk.CTkFrame):
                 f"{svc.duration_min} λεπτά",
                 f"{svc.price:.2f} €",
             ]
-            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if r_idx % 2 == 0 else _ENTRY_BG
             for col, val in enumerate(values):
                 ctk.CTkLabel(
                     self._table, text=val, anchor="w",
@@ -936,7 +885,8 @@ class _ServicesPage(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w")
 
         # card
-        card = ctk.CTkFrame(self._form_frame, corner_radius=12)
+        card = ctk.CTkFrame(self._form_frame, corner_radius=12,
+                            fg_color=_CARD_BG, border_width=1, border_color=_BORDER)
         card.grid(row=1, column=0, sticky="ew", padx=32, pady=12)
         card.columnconfigure(1, weight=1)
 
@@ -950,7 +900,7 @@ class _ServicesPage(ctk.CTkFrame):
             ctk.CTkLabel(card, text=label, anchor="w").grid(
                 row=row_idx, column=0, sticky="w", padx=(20, 12), pady=(14, 2)
             )
-            entry = ctk.CTkEntry(card, placeholder_text=ph, show="•" if secret else "", height=36)
+            entry = ctk.CTkEntry(card, placeholder_text=ph, show="•" if secret else "", height=36, fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
             entry.grid(row=row_idx, column=1, sticky="ew", padx=(0, 20), pady=(14, 2))
             setattr(self, attr, entry)
 
@@ -969,12 +919,13 @@ class _ServicesPage(ctk.CTkFrame):
             btn_row, text="Ακύρωση", width=110,
             fg_color="transparent",
             border_width=1,
-            text_color=("gray20", "gray80"),
-            hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT,
+            hover_color=_MUTED,
             command=self._cancel_form,
         ).pack(side="left", padx=(0, 10))
         ctk.CTkButton(
             btn_row, text="Αποθήκευση", width=130,
+            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
             command=self._submit_form,
         ).pack(side="left")
 
@@ -992,7 +943,7 @@ class _ServicesPage(ctk.CTkFrame):
         for attr in ("_f_name", "_f_desc", "_f_duration", "_f_price"):
             getattr(self, attr).delete(0, "end")
         self._form_msg.set("")
-        self._form_msg_label.configure(text_color=("gray40", "gray60"))
+        self._form_msg_label.configure(text_color=_SUBTEXT)
         self._form_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
 
     # actions
@@ -1008,20 +959,20 @@ class _ServicesPage(ctk.CTkFrame):
                 duration_min=self._f_duration.get(),
                 price=self._f_price.get(),
             )
-            self._form_msg_label.configure(text_color=("#27ae60", "#2ecc71"))
+            self._form_msg_label.configure(text_color=_SUCCESS)
             self._form_msg.set("Η υπηρεσία δημιουργήθηκε επιτυχώς!")
             self.after(1200, self._show_list)
         except ServiceError as e:
-            self._form_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+            self._form_msg_label.configure(text_color=_ERROR)
             self._form_msg.set(str(e))
 
 #  Inventory — UC 2.4 
 
 
 _INV_STATUS_MAP = {
-    'completed': ("✔ Ολοκληρώθηκε", ("#27ae60", "#2ecc71")),
-    'draft':     ("Προσωρινή",    ("#e67e22", "#d68910")),
-    'cancelled': ("✘ Ακυρώθηκε",    ("#e74c3c", "#922b21")),
+    'completed': ("✔ Ολοκληρώθηκε", _SUCCESS),
+    'draft':     ("Προσωρινή",    _WARNING),
+    'cancelled': ("✘ Ακυρώθηκε",    _ERROR),
 }
 
 
@@ -1066,25 +1017,27 @@ class _InventoryPage(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w", padx=32, pady=(24, 12))
 
         # action card
-        act = ctk.CTkFrame(self._home_frame, corner_radius=10)
+        act = ctk.CTkFrame(self._home_frame, corner_radius=10,
+                           fg_color=_CARD_BG, border_width=1, border_color=_BORDER)
         act.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 4))
         act.columnconfigure((0, 1, 2), weight=1)
 
         ctk.CTkButton(
             act, text=" Πλήρης Απογραφή", height=44,
+            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
             command=self._start_full,
         ).grid(row=0, column=0, padx=16, pady=16, sticky="ew")
 
         ctk.CTkButton(
             act, text=" Μερική Απογραφή", height=44,
-            fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
-            text_color=("gray10", "gray90"),
+            fg_color=_MUTED, hover_color=_BORDER,
+            text_color=_TEXT,
             command=self._go_filter,
         ).grid(row=0, column=1, padx=16, pady=16, sticky="ew")
 
         self._draft_btn = ctk.CTkButton(
             act, text=" Συνέχεια Απογραφής", height=44,
-            fg_color=("#e67e22", "#d35400"), hover_color=("#d35400", "#b7770d"),
+            fg_color=_WARNING, hover_color="#b7770d",
             command=self._resume_draft,
         )
 
@@ -1102,7 +1055,7 @@ class _InventoryPage(ctk.CTkFrame):
             font=ctk.CTkFont(size=14, weight="bold"), anchor="w",
         ).grid(row=3, column=0, sticky="w", padx=32, pady=(8, 4))
 
-        self._history_box = ctk.CTkScrollableFrame(self._home_frame, corner_radius=10)
+        self._history_box = ctk.CTkScrollableFrame(self._home_frame, corner_radius=10, fg_color=_CARD_BG)
         self._history_box.grid(row=4, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._history_box.columnconfigure(0, weight=1)
 
@@ -1133,12 +1086,13 @@ class _InventoryPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._history_box,
                 text="Δεν υπάρχουν ολοκληρωμένες απογραφές ακόμα.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=0, column=0, pady=32)
             return
 
         for i, inv in enumerate(completed):
-            card = ctk.CTkFrame(self._history_box, corner_radius=8)
+            card = ctk.CTkFrame(self._history_box, corner_radius=8,
+                                fg_color=_ENTRY_BG, border_width=1, border_color=_BORDER)
             card.grid(row=i, column=0, sticky="ew", padx=8, pady=4)
             card.columnconfigure(0, weight=1)
 
@@ -1150,7 +1104,7 @@ class _InventoryPage(ctk.CTkFrame):
                 font=ctk.CTkFont(size=13, weight="bold"),
             ).pack(side="left")
             status_text, status_color = _INV_STATUS_MAP.get(
-                inv.status, (inv.status, ("gray", "gray"))
+                inv.status, (inv.status, _SUBTEXT)
             )
             ctk.CTkLabel(
                 top, text=status_text, text_color=status_color,
@@ -1161,11 +1115,11 @@ class _InventoryPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 card,
                 text=f"Ημερομηνία: {date_lbl}   |   Προϊόντα: {len(inv.lines)}",
-                text_color="gray", font=ctk.CTkFont(size=12), anchor="w",
+                text_color=_SUBTEXT, font=ctk.CTkFont(size=12), anchor="w",
             ).pack(fill="x", padx=16, pady=(0, 10))
 
     def _show_home_msg(self, text: str, *, error: bool = False):
-        color = ("#e74c3c", "#e74c3c") if error else ("#27ae60", "#2ecc71")
+        color = _ERROR if error else _SUCCESS
         self._home_msg_lbl.configure(text_color=color)
         self._home_msg_var.set(text)
         self.after(5000, lambda: self._home_msg_var.set(""))
@@ -1176,7 +1130,8 @@ class _InventoryPage(ctk.CTkFrame):
         self._filter_frame.columnconfigure(0, weight=1)
         self._filter_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._filter_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._filter_frame, corner_radius=16,
+                            fg_color=_CARD_BG, border_width=1, border_color=_BORDER)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -1187,17 +1142,17 @@ class _InventoryPage(ctk.CTkFrame):
             card,
             text="Εισάγετε λέξη-κλειδί για φιλτράρισμα προϊόντων\n"
                  "(αναζητά σε όνομα και περιγραφή).",
-            text_color="gray", justify="center",
+            text_color=_SUBTEXT, justify="center",
         ).pack(padx=52, pady=(0, 16))
 
-        self._filter_entry = ctk.CTkEntry(card, width=320, placeholder_text="π.χ. σαμπουάν, serum…")
+        self._filter_entry = ctk.CTkEntry(card, width=320, placeholder_text="π.χ. σαμπουάν, serum…", fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
         self._filter_entry.pack(padx=52)
         self._filter_entry.bind("<Return>", lambda _: self._start_partial())
 
         self._filter_err = ctk.StringVar()
         ctk.CTkLabel(
             card, textvariable=self._filter_err,
-            text_color=("#e74c3c", "#e74c3c"), font=ctk.CTkFont(size=12),
+            text_color=_ERROR, font=ctk.CTkFont(size=12),
         ).pack(padx=52, pady=(8, 0))
 
         btn_row = ctk.CTkFrame(card, fg_color="transparent")
@@ -1205,11 +1160,11 @@ class _InventoryPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="← Πίσω", width=110,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_home,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
-            btn_row, text="🔍  Αναζήτηση", width=160,
+            btn_row, text=" Αναζήτηση", width=160,
             command=self._start_partial,
         ).pack(side="left")
 
@@ -1232,7 +1187,7 @@ class _InventoryPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Ακύρωση", width=110,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=lambda: self._go_cancel_confirm(back_fn=self._go_home),
         ).grid(row=0, column=0, sticky="w")
         self._count_title = ctk.CTkLabel(
@@ -1252,7 +1207,7 @@ class _InventoryPage(ctk.CTkFrame):
             ).grid(row=0, column=c, sticky="ew" if c == 0 else "", padx=(8, 4))
         cols.columnconfigure(0, weight=1)
 
-        self._count_scroll = ctk.CTkScrollableFrame(self._count_frame, corner_radius=10)
+        self._count_scroll = ctk.CTkScrollableFrame(self._count_frame, corner_radius=10, fg_color=_CARD_BG)
         self._count_scroll.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 8))
         self._count_scroll.columnconfigure(0, weight=1)
 
@@ -1275,7 +1230,7 @@ class _InventoryPage(ctk.CTkFrame):
         self._count_title.configure(text=f"Βήμα 1 — Καταγραφή Ποσοτήτων  ({type_lbl})")
 
         for i, line in enumerate(inv.lines):
-            bg = ("gray92", "gray18") if i % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if i % 2 == 0 else _ENTRY_BG
             row_f = ctk.CTkFrame(self._count_scroll, fg_color=bg, corner_radius=4)
             row_f.grid(row=i, column=0, sticky="ew", padx=4, pady=2)
             row_f.columnconfigure(0, weight=1)
@@ -1285,7 +1240,7 @@ class _InventoryPage(ctk.CTkFrame):
             ctk.CTkLabel(row_f, text=str(line.system_qty), width=110, anchor="center").grid(
                 row=0, column=1, padx=4)
 
-            entry = ctk.CTkEntry(row_f, width=110, placeholder_text="0", justify="center")
+            entry = ctk.CTkEntry(row_f, width=110, placeholder_text="0", justify="center", fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
             if resuming and line.actual_qty > 0:
                 entry.insert(0, str(line.actual_qty))
             entry.grid(row=0, column=2, padx=(4, 8), pady=6)
@@ -1318,7 +1273,7 @@ class _InventoryPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=110,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=lambda: self._go_count(),
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
@@ -1328,12 +1283,12 @@ class _InventoryPage(ctk.CTkFrame):
 
         # summary stats
         self._review_stats = ctk.CTkLabel(
-            self._review_frame, text="", text_color="gray",
+            self._review_frame, text="", text_color=_SUBTEXT,
             font=ctk.CTkFont(size=12), anchor="w",
         )
         self._review_stats.grid(row=1, column=0, sticky="w", padx=32, pady=(0, 4))
 
-        self._review_scroll = ctk.CTkScrollableFrame(self._review_frame, corner_radius=10)
+        self._review_scroll = ctk.CTkScrollableFrame(self._review_frame, corner_radius=10, fg_color=_CARD_BG)
         self._review_scroll.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 8))
         self._review_scroll.columnconfigure(0, weight=1)
 
@@ -1343,7 +1298,7 @@ class _InventoryPage(ctk.CTkFrame):
 
         ctk.CTkButton(
             btn_row, text="✘  Ακύρωση", width=140,
-            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            fg_color=_ERROR, hover_color=_DANGER_HV,
             command=lambda: self._go_cancel_confirm(back_fn=self._go_review),
         ).grid(row=0, column=0, sticky="w")
 
@@ -1351,7 +1306,7 @@ class _InventoryPage(ctk.CTkFrame):
         right.grid(row=0, column=1, sticky="e")
         ctk.CTkButton(
             right, text=" Αποθήκευση Προσωρινής", width=210,
-            fg_color=("#e67e22", "#d35400"), hover_color=("#d35400", "#b7770d"),
+            fg_color=_WARNING, hover_color="#b7770d",
             command=self._save_draft,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
@@ -1372,7 +1327,7 @@ class _InventoryPage(ctk.CTkFrame):
                 anchor="w" if c == 0 else "center",
             ).grid(row=0, column=c, sticky="ew" if c == 0 else "", padx=8, pady=6)
         self._review_scroll.columnconfigure(0, weight=1)
-        ctk.CTkFrame(self._review_scroll, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._review_scroll, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=4, sticky="ew", padx=4)
 
         n_diff = 0
@@ -1381,7 +1336,7 @@ class _InventoryPage(ctk.CTkFrame):
             dev    = actual - line.system_qty
             if dev != 0:
                 n_diff += 1
-            bg = ("gray92", "gray18") if i % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if i % 2 == 0 else _ENTRY_BG
 
             ctk.CTkLabel(
                 self._review_scroll, text=line.product_name, anchor="w", fg_color=bg, corner_radius=4,
@@ -1394,11 +1349,11 @@ class _InventoryPage(ctk.CTkFrame):
             ).grid(row=i, column=2, padx=4, pady=2)
 
             if dev == 0:
-                dev_txt, dev_color = "0", ("gray50", "gray50")
+                dev_txt, dev_color = "0", _SUBTEXT
             elif dev > 0:
-                dev_txt, dev_color = f"+{dev}", ("#27ae60", "#2ecc71")
+                dev_txt, dev_color = f"+{dev}", _SUCCESS
             else:
-                dev_txt, dev_color = str(dev), ("#e74c3c", "#e74c3c")
+                dev_txt, dev_color = str(dev), _ERROR
             ctk.CTkLabel(
                 self._review_scroll, text=dev_txt,
                 text_color=dev_color, anchor="center",
@@ -1419,7 +1374,8 @@ class _InventoryPage(ctk.CTkFrame):
         self._cancel_confirm_frame.columnconfigure(0, weight=1)
         self._cancel_confirm_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._cancel_confirm_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._cancel_confirm_frame, corner_radius=16,
+                            fg_color=_CARD_BG, border_width=1, border_color=_BORDER)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -1429,7 +1385,7 @@ class _InventoryPage(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text="Είστε σίγουροι;\nΔεν θα ενημερωθούν τα αποθέματα.",
-            text_color="gray", justify="center",
+            text_color=_SUBTEXT, justify="center",
         ).pack(padx=52, pady=(0, 28))
 
         btn_row = ctk.CTkFrame(card, fg_color="transparent")
@@ -1437,12 +1393,12 @@ class _InventoryPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="Όχι, επιστροφή", width=160,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=lambda: self._cancel_back_fn(),
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
             btn_row, text="Ναι, ακύρωση", width=160,
-            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            fg_color=_ERROR, hover_color=_DANGER_HV,
             command=self._execute_cancel,
         ).pack(side="left")
 
@@ -1470,22 +1426,22 @@ class _InventoryPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Νέα Απογραφή", width=150,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_home,
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
             hdr, text="✔  Απογραφή Ολοκληρώθηκε",
             font=ctk.CTkFont(size=18, weight="bold"),
-            text_color=("#27ae60", "#2ecc71"),
+            text_color=_SUCCESS,
         ).grid(row=0, column=1, sticky="w", padx=20)
 
         self._result_meta = ctk.CTkLabel(
             self._result_frame, text="",
-            text_color="gray", font=ctk.CTkFont(size=12), anchor="w",
+            text_color=_SUBTEXT, font=ctk.CTkFont(size=12), anchor="w",
         )
         self._result_meta.grid(row=1, column=0, sticky="w", padx=32, pady=(0, 4))
 
-        self._result_scroll = ctk.CTkScrollableFrame(self._result_frame, corner_radius=10)
+        self._result_scroll = ctk.CTkScrollableFrame(self._result_frame, corner_radius=10, fg_color=_CARD_BG)
         self._result_scroll.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._result_scroll.columnconfigure(0, weight=1)
 
@@ -1508,12 +1464,12 @@ class _InventoryPage(ctk.CTkFrame):
                 anchor="w" if c == 0 else "center",
             ).grid(row=0, column=c, sticky="ew" if c == 0 else "", padx=8, pady=6)
         self._result_scroll.columnconfigure(0, weight=1)
-        ctk.CTkFrame(self._result_scroll, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._result_scroll, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=4, sticky="ew", padx=4)
 
         for i, line in enumerate(inv.lines, start=2):
             dev = line.deviation
-            bg  = ("gray92", "gray18") if i % 2 == 0 else ("gray96", "gray15")
+            bg  = _CARD_BG if i % 2 == 0 else _ENTRY_BG
 
             ctk.CTkLabel(
                 self._result_scroll, text=line.product_name, anchor="w",
@@ -1529,11 +1485,11 @@ class _InventoryPage(ctk.CTkFrame):
             ).grid(row=i, column=2, padx=4, pady=2)
 
             if dev == 0:
-                dev_txt, dev_col = "0", ("gray50", "gray50")
+                dev_txt, dev_col = "0", _SUBTEXT
             elif dev > 0:
-                dev_txt, dev_col = f"+{dev}", ("#27ae60", "#2ecc71")
+                dev_txt, dev_col = f"+{dev}", _SUCCESS
             else:
-                dev_txt, dev_col = str(dev), ("#e74c3c", "#e74c3c")
+                dev_txt, dev_col = str(dev), _ERROR
             ctk.CTkLabel(
                 self._result_scroll, text=dev_txt,
                 text_color=dev_col, anchor="center",

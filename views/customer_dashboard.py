@@ -1,4 +1,4 @@
-import customtkinter as ctk
+﻿import customtkinter as ctk
 from PIL import Image
 from services.errors import OrderError
 from services.errors import RefundError
@@ -12,6 +12,20 @@ from controllers.appointment_controller import AppointmentController, Appointmen
 from datetime import datetime, timedelta
 from controllers.eshop_controller import EShopController
 from controllers.order_controller import OrderController
+
+_BG        = "#e9eff4"
+_CARD_BG   = "#f4f7f9"
+_ACCENT    = "#4a6984"
+_ACCENT_HV = "#1d2d44"
+_MUTED     = "#cbd9e0"
+_TEXT      = "#2b211a"
+_SUBTEXT   = "#5c534c"
+_ENTRY_BG  = "#ffffff"
+_BORDER    = "#dbe3e8"
+_ERROR     = "#c0392b"
+_SUCCESS   = "#27ae60"
+_WARNING   = "#e67e22"
+_DANGER_HV = "#922b21"
 
 class CustomerDashboard(BaseDashboard):
     NAV_ITEMS = [
@@ -48,7 +62,7 @@ class _HomePage(ctk.CTkFrame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
 
-        box = ctk.CTkFrame(self, corner_radius=16)
+        box = ctk.CTkFrame(self, corner_radius=16, fg_color=_CARD_BG)
         box.grid(row=0, column=0)
         logo = ctk.CTkImage(
             light_image=Image.open("resources/logo.jpeg"),
@@ -63,25 +77,9 @@ class _HomePage(ctk.CTkFrame):
         ctk.CTkLabel(
             box,
             text="Ψωνίστε από το E-Shop, κλείστε ραντεβού\nκαι δείτε το ιστορικό παραγγελιών σας.",
-            text_color="gray",
+            text_color=_SUBTEXT,
             justify="center",
         ).pack(pady=(8, 32), padx=40)
-
-
-class _PlaceholderPage(ctk.CTkFrame):
-    def __init__(self, master, title: str):
-        super().__init__(master, fg_color="transparent")
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        ctk.CTkLabel(
-            self, text=f"{title}\n\nΈρχεται σύντομα…",
-            font=ctk.CTkFont(size=18),
-            text_color="gray",
-            justify="center",
-        ).grid(row=0, column=0)
-
-
-
 
 class _SalonSearchPage(ctk.CTkFrame):
     _RES_COLS = ["Όνομα", "Πόλη", "Διεύθυνση", "Τηλέφωνο", ""]
@@ -112,12 +110,12 @@ class _SalonSearchPage(ctk.CTkFrame):
 
         # title
         ctk.CTkLabel(
-            self._search_frame, text="🔍 Αναζήτηση Κομμωτηρίων",
+            self._search_frame, text=" Αναζήτηση Κομμωτηρίων",
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=32, pady=(24, 12))
 
         # filter bar
-        bar = ctk.CTkFrame(self._search_frame, corner_radius=10)
+        bar = ctk.CTkFrame(self._search_frame, corner_radius=10, fg_color=_CARD_BG)
         bar.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 12))
         bar.columnconfigure(1, weight=2)
         bar.columnconfigure(3, weight=1)
@@ -125,44 +123,40 @@ class _SalonSearchPage(ctk.CTkFrame):
         ctk.CTkLabel(bar, text="Όνομα:", anchor="w").grid(
             row=0, column=0, padx=(16, 8), pady=14,
         )
-        self._name_entry = ctk.CTkEntry(
-            bar, placeholder_text="Όνομα κομμωτηρίου…", height=36,
-        )
+        self._name_entry = ctk.CTkEntry(bar, placeholder_text="Όνομα κομμωτηρίου…", height=36, fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
         self._name_entry.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=14)
         self._name_entry.bind("<Return>", lambda _: self._do_search())
 
         ctk.CTkLabel(bar, text="Πόλη:", anchor="w").grid(
             row=0, column=2, padx=(0, 8), pady=14,
         )
-        self._city_entry = ctk.CTkEntry(
-            bar, placeholder_text="π.χ. Αθήνα…", height=36, width=160,
-        )
+        self._city_entry = ctk.CTkEntry(bar, placeholder_text="π.χ. Αθήνα…", height=36, width=160, fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
         self._city_entry.grid(row=0, column=3, sticky="ew", padx=(0, 12), pady=14)
         self._city_entry.bind("<Return>", lambda _: self._do_search())
 
         ctk.CTkLabel(bar, text="Υπηρεσία:", anchor="w").grid(
             row=0, column=4, padx=(0, 8), pady=14,
         )
-        self._svc_combo = ctk.CTkComboBox(
-            bar, values=[self._ALL_SVC], width=190, state="readonly",
-        )
+        self._svc_combo = ctk.CTkComboBox(bar, values=[self._ALL_SVC], width=190, state="readonly", fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, button_color=_ACCENT, button_hover_color=_ACCENT_HV)
         self._svc_combo.grid(row=0, column=5, padx=(0, 12), pady=14)
         self._svc_combo.set(self._ALL_SVC)
 
         ctk.CTkButton(
             bar, text="Αναζήτηση", width=130,
             command=self._do_search,
+            fg_color=_ACCENT_HV, hover_color=_ACCENT,
+
         ).grid(row=0, column=6, padx=(0, 8), pady=14)
         ctk.CTkButton(
             bar, text="✕ Καθαρισμός", width=130,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._clear_filters,
         ).grid(row=0, column=7, padx=(0, 16), pady=14)
 
 
         # results table 
-        self._res_table = ctk.CTkScrollableFrame(self._search_frame, corner_radius=10)
+        self._res_table = ctk.CTkScrollableFrame(self._search_frame, corner_radius=10, fg_color=_CARD_BG)
         self._res_table.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
         for i in range(len(self._RES_COLS)):
             self._res_table.columnconfigure(i, weight=1)
@@ -198,12 +192,12 @@ class _SalonSearchPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._res_table,
                 text="Δεν βρέθηκαν κομμωτήρια με τα επιλεγμένα κριτήρια.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=0, column=0, columnspan=len(self._RES_COLS), pady=(24, 6))
             ctk.CTkLabel(
                 self._res_table,
                 text="Δοκιμάστε να τροποποιήσετε τα φίλτρα αναζήτησης.",
-                text_color=("gray55", "gray55"), font=ctk.CTkFont(size=12),
+                text_color=_SUBTEXT, font=ctk.CTkFont(size=12),
             ).grid(row=1, column=0, columnspan=len(self._RES_COLS), pady=(0, 24))
             return
 
@@ -212,12 +206,12 @@ class _SalonSearchPage(ctk.CTkFrame):
                 self._res_table, text=h,
                 font=ctk.CTkFont(weight="bold"), anchor="w",
             ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
-        ctk.CTkFrame(self._res_table, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._res_table, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=len(self._RES_COLS), sticky="ew", padx=4,
         )
 
         for r_idx, salon in enumerate(salons, start=2):
-            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if r_idx % 2 == 0 else _ENTRY_BG
             for col, val in enumerate([
                 salon.name, salon.city, salon.address, salon.phone or "—"
             ]):
@@ -229,7 +223,7 @@ class _SalonSearchPage(ctk.CTkFrame):
             # βήμα 4 — επιλογή κομμωτηρίου
             ctk.CTkButton(
                 self._res_table, text="Προφίλ →", width=100, height=26,
-                fg_color=("gray70", "gray30"), hover_color=("gray60", "gray40"),
+                fg_color=_ACCENT_HV, hover_color=_ACCENT,
                 font=ctk.CTkFont(size=11),
                 command=lambda s=salon: self._open_profile(s),
             ).grid(row=r_idx, column=4, padx=4, pady=2)
@@ -247,7 +241,7 @@ class _SalonSearchPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=100,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._show_search,
         ).grid(row=0, column=0, sticky="w")
         self._profile_title = ctk.CTkLabel(
@@ -256,7 +250,7 @@ class _SalonSearchPage(ctk.CTkFrame):
         self._profile_title.grid(row=0, column=1, sticky="w", padx=20)
 
         # info card
-        self._info_card = ctk.CTkFrame(self._profile_frame, corner_radius=12)
+        self._info_card = ctk.CTkFrame(self._profile_frame, corner_radius=12, fg_color=_CARD_BG, border_width=1, border_color=_BORDER)
         self._info_card.grid(row=1, column=0, sticky="ew", padx=32, pady=(8, 12))
         self._info_card.columnconfigure((0, 1, 2, 3), weight=1)
 
@@ -275,11 +269,11 @@ class _SalonSearchPage(ctk.CTkFrame):
             svc_wrap, text="Κομμωτές",
             font=ctk.CTkFont(size=14, weight="bold"), anchor="w",
         ).grid(row=0, column=1, sticky="w", pady=(0, 6), padx=(12, 0))
-        self._svc_table = ctk.CTkScrollableFrame(svc_wrap, corner_radius=10)
+        self._svc_table = ctk.CTkScrollableFrame(svc_wrap, corner_radius=10, fg_color=_CARD_BG)
         self._svc_table.grid(row=1, column=0, sticky="nsew")
         for i in range(len(self._SVC_COLS)):
             self._svc_table.columnconfigure(i, weight=1)
-        self._emp_list = ctk.CTkScrollableFrame(svc_wrap, corner_radius=10)
+        self._emp_list = ctk.CTkScrollableFrame(svc_wrap, corner_radius=10, fg_color=_CARD_BG)
         self._emp_list.grid(row=1, column=1, sticky="nsew", padx=(12, 0))
         self._emp_list.columnconfigure(0, weight=1)
 
@@ -319,7 +313,7 @@ class _SalonSearchPage(ctk.CTkFrame):
             cell.grid(row=0, column=col, padx=20, pady=16, sticky="nsew")
             ctk.CTkLabel(
                 cell, text=f"{icon}  {label}",
-                text_color="gray", font=ctk.CTkFont(size=11), anchor="w",
+                text_color=_SUBTEXT, font=ctk.CTkFont(size=11), anchor="w",
             ).pack(anchor="w")
             ctk.CTkLabel(
                 cell, text=val,
@@ -336,7 +330,7 @@ class _SalonSearchPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._svc_table,
                 text="Δεν έχουν ανατεθεί υπηρεσίες σε αυτό το κομμωτήριο.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=0, column=0, columnspan=3, pady=20)
         else:
             for col, h in enumerate(self._SVC_COLS):
@@ -344,11 +338,11 @@ class _SalonSearchPage(ctk.CTkFrame):
                     self._svc_table, text=h,
                     font=ctk.CTkFont(weight="bold"), anchor="w",
                 ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
-            ctk.CTkFrame(self._svc_table, height=1, fg_color="gray40").grid(
+            ctk.CTkFrame(self._svc_table, height=1, fg_color=_MUTED).grid(
                 row=1, column=0, columnspan=3, sticky="ew", padx=4,
             )
             for r_idx, svc in enumerate(services, start=2):
-                bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+                bg = _CARD_BG if r_idx % 2 == 0 else _ENTRY_BG
                 for col, val in enumerate([
                     svc.name, f"{svc.duration_min} λεπτά", f"{svc.price:.2f} €"
                 ]):
@@ -365,11 +359,11 @@ class _SalonSearchPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._emp_list,
                 text="Δεν έχουν ανατεθεί κομμωτές.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=0, column=0, pady=12, padx=8)
         else:
             for i, emp in enumerate(employees):
-                bg = ("gray92", "gray18") if i % 2 == 0 else ("gray96", "gray15")
+                bg = _CARD_BG if i % 2 == 0 else _ENTRY_BG
                 ctk.CTkLabel(
                     self._emp_list, text=f"• {emp['name']}",
                     anchor="w", fg_color=bg, corner_radius=4,
@@ -427,33 +421,32 @@ class _EShopStorePage(ctk.CTkFrame):
         hdr.grid(row=0, column=0, sticky="ew", padx=32, pady=(24, 4))
         hdr.columnconfigure(0, weight=1)
         ctk.CTkLabel(
-            hdr, text="🛍 E-Shop — Προϊόντα",
+            hdr, text=" E-Shop — Προϊόντα",
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkButton(
             hdr, text=" Δες Καλάθι", width=140,
+            fg_color=_ACCENT_HV, hover_color=_ACCENT,
             command=lambda: self._navigate("cart"),
         ).grid(row=0, column=1, sticky="e")
 
         # search bar 
-        bar = ctk.CTkFrame(self._list_frame, corner_radius=10)
+        bar = ctk.CTkFrame(self._list_frame, corner_radius=10, fg_color=_CARD_BG)
         bar.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 6))
         bar.columnconfigure(1, weight=1)
         ctk.CTkLabel(bar, text="Αναζήτηση:", anchor="w").grid(
             row=0, column=0, padx=(16, 8), pady=12,
         )
-        self._search_entry = ctk.CTkEntry(
-            bar, placeholder_text="Όνομα ή περιγραφή…", height=34,
-        )
+        self._search_entry = ctk.CTkEntry(bar, placeholder_text="Όνομα ή περιγραφή…", height=34, fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
         self._search_entry.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=12)
         self._search_entry.bind("<Return>", lambda _: self._do_search())
         ctk.CTkButton(
-            bar, text=" Αναζήτηση", width=130, command=self._do_search,
+            bar, text=" Αναζήτηση", width=130, command=self._do_search, fg_color=_ACCENT_HV, hover_color=_ACCENT,
         ).grid(row=0, column=2, padx=(0, 6), pady=12)
         ctk.CTkButton(
             bar, text="✕ Καθαρισμός", width=130,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._clear_search,
         ).grid(row=0, column=3, padx=(0, 16), pady=12)
 
@@ -461,12 +454,12 @@ class _EShopStorePage(ctk.CTkFrame):
         self._list_toast_var = ctk.StringVar()
         ctk.CTkLabel(
             self._list_frame, textvariable=self._list_toast_var,
-            text_color=("#27ae60", "#2ecc71"),
+            text_color=_SUCCESS,
             font=ctk.CTkFont(size=12), anchor="w",
         ).grid(row=2, column=0, sticky="w", padx=32)
 
         # results table
-        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10)
+        self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10, fg_color=_CARD_BG)
         self._table.grid(row=3, column=0, sticky="nsew", padx=32, pady=(2, 24))
         for i in range(len(self._LIST_COLS)):
             self._table.columnconfigure(i, weight=1)
@@ -498,7 +491,7 @@ class _EShopStorePage(ctk.CTkFrame):
                 "Δεν βρέθηκαν προϊόντα για την αναζήτησή σας."
             )
             ctk.CTkLabel(
-                self._table, text=msg, text_color="gray",
+                self._table, text=msg, text_color=_SUBTEXT,
             ).grid(row=0, column=0, columnspan=len(self._LIST_COLS), pady=36)
             return
 
@@ -507,12 +500,12 @@ class _EShopStorePage(ctk.CTkFrame):
                 self._table, text=h,
                 font=ctk.CTkFont(weight="bold"), anchor="w",
             ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
-        ctk.CTkFrame(self._table, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._table, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=len(self._LIST_COLS), sticky="ew", padx=4,
         )
 
         for r_idx, p in enumerate(products, start=2):
-            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if r_idx % 2 == 0 else _ENTRY_BG
             for col, val in enumerate([
                 p.name,
                 (p.description or "—")[:40],
@@ -527,7 +520,7 @@ class _EShopStorePage(ctk.CTkFrame):
             #επιλογή προϊόντος
             ctk.CTkButton(
                 self._table, text="Λεπτομέρειες →", width=130, height=26,
-                fg_color=("gray70", "gray30"), hover_color=("gray60", "gray40"),
+                fg_color=_ACCENT_HV, hover_color=_ACCENT,
                 font=ctk.CTkFont(size=11),
                 command=lambda prod=p: self._open_detail(prod),
             ).grid(row=r_idx, column=4, padx=4, pady=2)
@@ -538,7 +531,7 @@ class _EShopStorePage(ctk.CTkFrame):
         self._detail_frame.columnconfigure(0, weight=1)
         self._detail_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._detail_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._detail_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         # header inside card
@@ -548,7 +541,7 @@ class _EShopStorePage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=90,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_list,
         ).grid(row=0, column=0, sticky="w")
         self._detail_title = ctk.CTkLabel(
@@ -557,13 +550,14 @@ class _EShopStorePage(ctk.CTkFrame):
         self._detail_title.grid(row=0, column=1, sticky="w", padx=16)
         ctk.CTkButton(
             hdr, text=" Δες Καλάθι", width=130,
+            fg_color=_ACCENT_HV, hover_color=_ACCENT,
             command=lambda: self._navigate("cart"),
         ).grid(row=0, column=2, sticky="e")
 
         # product info
         self._detail_desc = ctk.CTkLabel(
             card, text="", justify="left",
-            text_color="gray", wraplength=420, anchor="w",
+            text_color=_SUBTEXT, wraplength=420, anchor="w",
         )
         self._detail_desc.pack(fill="x", padx=40, pady=(4, 0))
 
@@ -576,7 +570,7 @@ class _EShopStorePage(ctk.CTkFrame):
         self._detail_price.pack(side="left")
         self._detail_stock = ctk.CTkLabel(
             info_row, text="",
-            text_color="gray", font=ctk.CTkFont(size=12),
+            text_color=_SUBTEXT, font=ctk.CTkFont(size=12),
         )
         self._detail_stock.pack(side="left", padx=(16, 0))
 
@@ -586,7 +580,7 @@ class _EShopStorePage(ctk.CTkFrame):
         ctk.CTkLabel(qty_section, text="Ποσότητα:", font=ctk.CTkFont(size=13)).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
             qty_section, text="−", width=34, height=34,
-            fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+            fg_color=_ACCENT_HV, hover_color=_ACCENT,
             command=self._dec_qty,
         ).pack(side="left")
         self._qty_label = ctk.CTkLabel(
@@ -596,7 +590,7 @@ class _EShopStorePage(ctk.CTkFrame):
         self._qty_label.pack(side="left")
         ctk.CTkButton(
             qty_section, text="+", width=34, height=34,
-            fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+            fg_color=_ACCENT_HV, hover_color=_ACCENT,
             command=self._inc_qty,
         ).pack(side="left")
 
@@ -610,6 +604,7 @@ class _EShopStorePage(ctk.CTkFrame):
         ctk.CTkButton(
             card, text="+ Προσθήκη στο Καλάθι", width=240, height=40,
             font=ctk.CTkFont(size=14),
+            fg_color=_ACCENT_HV, hover_color=_ACCENT,
             command=self._add_to_cart,
         ).pack(pady=(12, 32))
 
@@ -698,7 +693,7 @@ class _CartPage(ctk.CTkFrame):
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
 
-        self._cart_table = ctk.CTkScrollableFrame(self._cart_frame, corner_radius=10)
+        self._cart_table = ctk.CTkScrollableFrame(self._cart_frame, corner_radius=10, fg_color=_CARD_BG)
         self._cart_table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 8))
         self._cart_table.columnconfigure((0, 1, 2, 3), weight=1)
 
@@ -714,8 +709,8 @@ class _CartPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="🗑 Άδειασμα", width=140,
             fg_color="transparent", border_width=1,
-            text_color=("#e74c3c", "#e74c3c"),
-            hover_color=("gray85", "gray25"),
+            text_color=_ERROR,
+            hover_color=_MUTED,
             command=self._clear_cart,
         ).grid(row=0, column=0, sticky="w")
         self._proceed_btn = ctk.CTkButton(
@@ -739,7 +734,7 @@ class _CartPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._cart_table,
                 text="Το καλάθι είναι άδειο.\nΜεταβείτε στο E-Shop για να επιλέξετε προϊόντα.",
-                text_color="gray", justify="center",
+                text_color=_SUBTEXT, justify="center",
             ).grid(row=0, column=0, columnspan=4, pady=36)
             self._cart_total_var.set("")
             self._proceed_btn.configure(state="disabled")
@@ -750,12 +745,12 @@ class _CartPage(ctk.CTkFrame):
                 self._cart_table, text=h,
                 font=ctk.CTkFont(weight="bold"), anchor="w",
             ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
-        ctk.CTkFrame(self._cart_table, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._cart_table, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=4, sticky="ew", padx=4
         )
 
         for r_idx, line in enumerate(lines, start=2):
-            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if r_idx % 2 == 0 else _ENTRY_BG
             ctk.CTkLabel(
                 self._cart_table, text=line.name, anchor="w",
                 fg_color=bg, corner_radius=4,
@@ -769,7 +764,7 @@ class _CartPage(ctk.CTkFrame):
             qty_frame.grid(row=r_idx, column=2, sticky="ew", padx=4, pady=2)
             ctk.CTkButton(
                 qty_frame, text="−", width=28, height=26,
-                fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+                fg_color=_MUTED, hover_color=_BORDER,
                 command=lambda pid=line.product_id, q=line.quantity: self._change_qty(pid, q - 1),
             ).pack(side="left", padx=(4, 2), pady=2)
             ctk.CTkLabel(
@@ -777,7 +772,7 @@ class _CartPage(ctk.CTkFrame):
             ).pack(side="left")
             ctk.CTkButton(
                 qty_frame, text="+", width=28, height=26,
-                fg_color=("gray72", "gray32"), hover_color=("gray60", "gray40"),
+                fg_color=_MUTED, hover_color=_BORDER,
                 command=lambda pid=line.product_id, q=line.quantity: self._change_qty(pid, q + 1),
             ).pack(side="left", padx=(2, 4), pady=2)
 
@@ -809,7 +804,7 @@ class _CartPage(ctk.CTkFrame):
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
 
-        self._summary_table = ctk.CTkScrollableFrame(self._summary_frame, corner_radius=10)
+        self._summary_table = ctk.CTkScrollableFrame(self._summary_frame, corner_radius=10, fg_color=_CARD_BG)
         self._summary_table.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 8))
         self._summary_table.columnconfigure((0, 1, 2, 3), weight=1)
 
@@ -825,8 +820,8 @@ class _CartPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="← Ακύρωση", width=130,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"),
-            hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT,
+            hover_color=_MUTED,
             command=self._go_cancel_confirm,
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkButton(
@@ -848,12 +843,12 @@ class _CartPage(ctk.CTkFrame):
                 self._summary_table, text=h,
                 font=ctk.CTkFont(weight="bold"), anchor="w",
             ).grid(row=0, column=col, sticky="ew", padx=8, pady=6)
-        ctk.CTkFrame(self._summary_table, height=1, fg_color="gray40").grid(
+        ctk.CTkFrame(self._summary_table, height=1, fg_color=_MUTED).grid(
             row=1, column=0, columnspan=4, sticky="ew", padx=4
         )
 
         for r_idx, line in enumerate(OrderController.get_cart_lines(), start=2):
-            bg = ("gray92", "gray18") if r_idx % 2 == 0 else ("gray96", "gray15")
+            bg = _CARD_BG if r_idx % 2 == 0 else _ENTRY_BG
             for col, val in enumerate([
                 line.name, f"{line.price:.2f} €", str(line.quantity), f"{line.subtotal:.2f} €"
             ]):
@@ -877,7 +872,7 @@ class _CartPage(ctk.CTkFrame):
         self._cancel_frame.columnconfigure(0, weight=1)
         self._cancel_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._cancel_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._cancel_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
         ctk.CTkLabel(
             card, text="❌  Ακύρωση Παραγγελίας",
@@ -886,7 +881,7 @@ class _CartPage(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text="Είστε σίγουροι ότι θέλετε να ακυρώσετε;\nΤο καλάθι θα παραμείνει αναλλοίωτο.",
-            text_color="gray", justify="center",
+            text_color=_SUBTEXT, justify="center",
         ).pack(padx=52, pady=(0, 28))
 
         btn_row = ctk.CTkFrame(card, fg_color="transparent")
@@ -894,13 +889,13 @@ class _CartPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="Όχι, επιστροφή", width=160,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"),
-            hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT,
+            hover_color=_MUTED,
             command=self._go_summary,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
             btn_row, text="Ναι, ακύρωση", width=160,
-            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            fg_color=_ERROR, hover_color=_DANGER_HV,
             command=self._go_cart,
         ).pack(side="left")
 
@@ -908,13 +903,13 @@ class _CartPage(ctk.CTkFrame):
         self._hide_all()
         self._cancel_frame.grid(row=0, column=0, sticky="nsew")
 
-    # ================================================================ INSUFFICIENT STOCK VIEW (alt flow 2)
+    # INSUFFICIENT STOCK VIEW (alt flow 2)
     def _build_insufficient_view(self):
         self._insufficient_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._insufficient_frame.columnconfigure(0, weight=1)
         self._insufficient_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._insufficient_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._insufficient_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
         ctk.CTkLabel(
             card, text="⚠  Μη Επαρκές Απόθεμα",
@@ -923,11 +918,11 @@ class _CartPage(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text="Τα παρακάτω προϊόντα δεν έχουν επαρκές απόθεμα:",
-            text_color="gray",
+            text_color=_SUBTEXT,
         ).pack(padx=52, pady=(0, 12))
 
         self._insuf_items_frame = ctk.CTkFrame(
-            card, fg_color=("gray88", "gray22"), corner_radius=8
+            card, fg_color=_CARD_BG, corner_radius=8
         )
         self._insuf_items_frame.pack(padx=52, pady=(0, 24), fill="x")
 
@@ -942,18 +937,18 @@ class _CartPage(ctk.CTkFrame):
         for problem in problems:
             ctk.CTkLabel(
                 self._insuf_items_frame, text=f"• {problem}",
-                text_color=("#e74c3c", "#e74c3c"), anchor="w",
+                text_color=_ERROR, anchor="w",
             ).pack(fill="x", padx=16, pady=4)
         self._hide_all()
         self._insufficient_frame.grid(row=0, column=0, sticky="nsew")
 
-    # ================================================================ UC 2.5 — PAY FORM (steps 2–4 + alt flow 1)
+    #  UC 2.5 — PAY FORM (steps 2–4 + alt flow 1)
     def _build_pay_form_frame(self):
         self._pay_form_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._pay_form_frame.columnconfigure(0, weight=1)
         self._pay_form_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._pay_form_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._pay_form_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         # secure header (step 2 — ασφαλές περιβάλλον)
@@ -977,6 +972,8 @@ class _CartPage(ctk.CTkFrame):
                 parent, width=340,
                 placeholder_text=placeholder,
                 show=show,
+                fg_color=_ENTRY_BG, border_color=_BORDER,
+                text_color=_TEXT, placeholder_text_color=_MUTED,
             )
             e.pack(padx=52)
             return e
@@ -991,20 +988,20 @@ class _CartPage(ctk.CTkFrame):
         exp_col = ctk.CTkFrame(row2, fg_color="transparent")
         exp_col.pack(side="left", expand=True, fill="x", padx=(0, 8))
         ctk.CTkLabel(exp_col, text="Ημ. λήξης *", anchor="w").pack(anchor="w")
-        self._entry_expiry = ctk.CTkEntry(exp_col, placeholder_text="ΜΜ/ΕΕ")
+        self._entry_expiry = ctk.CTkEntry(exp_col, placeholder_text="ΜΜ/ΕΕ", fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
         self._entry_expiry.pack(fill="x")
 
         cvv_col = ctk.CTkFrame(row2, fg_color="transparent")
         cvv_col.pack(side="left", expand=True, fill="x")
         ctk.CTkLabel(cvv_col, text="CVV *", anchor="w").pack(anchor="w")
-        self._entry_cvv = ctk.CTkEntry(cvv_col, placeholder_text="123", show="*")
+        self._entry_cvv = ctk.CTkEntry(cvv_col, placeholder_text="123", show="*", fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
         self._entry_cvv.pack(fill="x")
 
         # error label (alt flow 1)
         self._pay_form_error = ctk.StringVar()
         ctk.CTkLabel(
             card, textvariable=self._pay_form_error,
-            text_color=("#e74c3c", "#e74c3c"),
+            text_color=_ERROR,
             font=ctk.CTkFont(size=12), wraplength=340,
         ).pack(padx=52, pady=(10, 0))
 
@@ -1013,7 +1010,7 @@ class _CartPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="← Πίσω", width=110,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_summary,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
@@ -1028,7 +1025,7 @@ class _CartPage(ctk.CTkFrame):
         for e in (self._entry_holder, self._entry_number,
                   self._entry_expiry, self._entry_cvv):
             e.delete(0, "end")
-            e.configure(border_color=("gray60", "gray40"))
+            e.configure(border_color=_BORDER)
         self._hide_all()
         self._pay_form_frame.grid(row=0, column=0, sticky="nsew")
 
@@ -1040,8 +1037,8 @@ class _CartPage(ctk.CTkFrame):
         cvv  = self._entry_cvv.get().strip()
 
         # reset highlights
-        _ok  = ("gray60", "gray40")
-        _err = ("#e74c3c", "#e74c3c")
+        _ok  = _BORDER
+        _err = _ERROR
         for e in (self._entry_holder, self._entry_number,
                   self._entry_expiry, self._entry_cvv):
             e.configure(border_color=_ok)
@@ -1087,13 +1084,13 @@ class _CartPage(ctk.CTkFrame):
         self._pay_form_error.set("")
         self._go_pay_review()
 
-    # ================================================================ UC 2.5 — PAY REVIEW (steps 5–6 + alt flow 2)
+    #  UC 2.5 — PAY REVIEW (steps 5–6 + alt flow 2)
     def _build_pay_review_frame(self):
         self._pay_review_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._pay_review_frame.columnconfigure(0, weight=1)
         self._pay_review_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._pay_review_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._pay_review_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -1103,7 +1100,7 @@ class _CartPage(ctk.CTkFrame):
 
         self._review_details = ctk.CTkLabel(
             card, text="", justify="left",
-            font=ctk.CTkFont(size=13), text_color="gray",
+            font=ctk.CTkFont(size=13), text_color=_SUBTEXT,
         )
         self._review_details.pack(padx=52, pady=(0, 8))
 
@@ -1118,7 +1115,7 @@ class _CartPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="← Ακύρωση", width=130,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_summary,          # alt flow 2 — back to summary
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
@@ -1139,8 +1136,7 @@ class _CartPage(ctk.CTkFrame):
         self._pay_review_frame.grid(row=0, column=0, sticky="nsew")
 
     def _simulate_payment(self):
-        """Steps 7–8: simulate payment gateway; create order on approval."""
-        # Simulation rule: card starting with "0000" → decline (useful for testing)
+ 
         if self._pay_card_number.startswith("0000"):
             self._go_pay_result(
                 approved=False,
@@ -1158,13 +1154,13 @@ class _CartPage(ctk.CTkFrame):
         except OrderError as e:
             self._go_pay_result(approved=False, reason=str(e))
 
-    # ================================================================ UC 2.5 — PAY RESULT (step 8 + alt flow 3)
+    #  UC 2.5 — PAY RESULT (step 8 + alt flow 3)
     def _build_pay_result_frame(self):
         self._pay_result_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._pay_result_frame.columnconfigure(0, weight=1)
         self._pay_result_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._pay_result_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._pay_result_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         self._result_icon = ctk.CTkLabel(card, text="",
@@ -1177,7 +1173,7 @@ class _CartPage(ctk.CTkFrame):
 
         self._result_details = ctk.CTkLabel(
             card, text="", justify="center",
-            font=ctk.CTkFont(size=13), text_color="gray", wraplength=360,
+            font=ctk.CTkFont(size=13), text_color=_SUBTEXT, wraplength=360,
         )
         self._result_details.pack(padx=52, pady=(0, 24))
 
@@ -1193,10 +1189,10 @@ class _CartPage(ctk.CTkFrame):
         if approved:
             # step 8 — αποδεικτικό συναλλαγής
             self._result_icon.configure(
-                text="✔", text_color=("#27ae60", "#2ecc71"))
+                text="✔", text_color=_SUCCESS)
             self._result_title.configure(
                 text="Η πληρωμή εγκρίθηκε!",
-                text_color=("#27ae60", "#2ecc71"))
+                text_color=_SUCCESS)
             self._result_details.configure(
                 text=f"Κωδικός συναλλαγής: {self._pay_txn_id}\n"
                      f"Παραγγελία #{self._last_order_id} καταχωρήθηκε επιτυχώς.")
@@ -1210,10 +1206,10 @@ class _CartPage(ctk.CTkFrame):
             msg = reason or ("Η συναλλαγή απορρίφθηκε.\n"
                              "Ελέγξτε τα στοιχεία της κάρτας σας.")
             self._result_icon.configure(
-                text="✘", text_color=("#e74c3c", "#e74c3c"))
+                text="✘", text_color=_ERROR)
             self._result_title.configure(
                 text="Η πληρωμή απορρίφθηκε",
-                text_color=("#e74c3c", "#e74c3c"))
+                text_color=_ERROR)
             self._result_details.configure(text=msg)
             ctk.CTkButton(
                 self._result_btn_row,
@@ -1224,7 +1220,7 @@ class _CartPage(ctk.CTkFrame):
                 self._result_btn_row,
                 text="Ακύρωση", width=130,
                 fg_color="transparent", border_width=1,
-                text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+                text_color=_SUBTEXT, hover_color=_MUTED,
                 command=self._go_cart,
             ).pack(side="left")
 
@@ -1236,9 +1232,9 @@ class _CartPage(ctk.CTkFrame):
 #  Order History
 
 _STATUS_MAP = {
-    'pending':   ("Εκκρεμεί",      ("#e67e22", "#d68910")),
-    'cancelled': ("✘ Ακυρωμένη",      ("#e74c3c", "#922b21")),
-    'completed': ("✔ Ολοκληρωμένη",   ("#27ae60", "#2ecc71")),
+    'pending':   ("Εκκρεμεί",      _WARNING),
+    'cancelled': ("✘ Ακυρωμένη",      _ERROR),
+    'completed': ("✔ Ολοκληρωμένη",   _SUCCESS),
 }
 
 
@@ -1264,7 +1260,7 @@ class _OrderHistoryPage(ctk.CTkFrame):
         )
         self._msg_label.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 4))
 
-        self._container = ctk.CTkScrollableFrame(self, corner_radius=10)
+        self._container = ctk.CTkScrollableFrame(self, corner_radius=10, fg_color=_CARD_BG)
         self._container.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._container.columnconfigure(0, weight=1)
 
@@ -1282,12 +1278,12 @@ class _OrderHistoryPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._container,
                 text="Δεν έχετε παραγγελίες ακόμα.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=0, column=0, pady=48)
             return
 
         for i, order in enumerate(orders):
-            card = ctk.CTkFrame(self._container, corner_radius=10)
+            card = ctk.CTkFrame(self._container, corner_radius=10, fg_color=_ENTRY_BG, border_width=1, border_color=_BORDER)
             card.grid(row=i, column=0, sticky="ew", padx=8, pady=6)
             card.columnconfigure(0, weight=1)
 
@@ -1300,7 +1296,7 @@ class _OrderHistoryPage(ctk.CTkFrame):
             ).pack(side="left")
 
             status_text, status_color = _STATUS_MAP.get(
-                order.status, (order.status, ("gray", "gray"))
+                order.status, (order.status, _SUBTEXT)
             )
             ctk.CTkLabel(
                 top, text=status_text, text_color=status_color,
@@ -1308,7 +1304,7 @@ class _OrderHistoryPage(ctk.CTkFrame):
             ).pack(side="right", padx=(8, 0))
             ctk.CTkLabel(
                 top, text=order.created_at[:16],
-                text_color="gray", font=ctk.CTkFont(size=11),
+                text_color=_SUBTEXT, font=ctk.CTkFont(size=11),
             ).pack(side="right")
 
             # items
@@ -1316,7 +1312,7 @@ class _OrderHistoryPage(ctk.CTkFrame):
                 ctk.CTkLabel(
                     card,
                     text=f"  • {item.product_name}  ×{item.quantity}  —  {item.subtotal:.2f} €",
-                    anchor="w", text_color="gray", font=ctk.CTkFont(size=12),
+                    anchor="w", text_color=_SUBTEXT, font=ctk.CTkFont(size=12),
                 ).pack(fill="x", padx=16)
 
             # footer: total + cancel button (step 2)
@@ -1331,7 +1327,7 @@ class _OrderHistoryPage(ctk.CTkFrame):
             if order.status == 'pending':
                 ctk.CTkButton(
                     footer, text="Ακύρωση", width=110, height=28,
-                    fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+                    fg_color=_ERROR, hover_color=_DANGER_HV,
                     font=ctk.CTkFont(size=11),
                     command=lambda oid=order.id: self._request_cancel(oid),
                 ).pack(side="right")
@@ -1339,11 +1335,11 @@ class _OrderHistoryPage(ctk.CTkFrame):
     # messages
     def _show_msg(self, text: str, *, success: bool = True, info: bool = False):
         if success:
-            color = ("#27ae60", "#2ecc71")
+            color = _SUCCESS
         elif info:
-            color = ("#e67e22", "#d68910")
+            color = _WARNING
         else:
-            color = ("#e74c3c", "#e74c3c")
+            color = _ERROR
         self._msg_label.configure(text_color=color)
         self._msg_var.set(text)
         self.after(5000, lambda: self._msg_var.set(""))
@@ -1351,7 +1347,7 @@ class _OrderHistoryPage(ctk.CTkFrame):
     # cancel flow
     def _request_cancel(self, order_id: int):
         """Βήμα 2 — ο πελάτης επιλέγει ακύρωση. Εμφάνιση επιβεβαίωσης."""
-        dialog = ctk.CTkToplevel(self)
+        dialog = ctk.CTkToplevel(self, fg_color=_BG)
         dialog.title("Ακύρωση Παραγγελίας")
         dialog.geometry("420x200")
         dialog.resizable(False, False)
@@ -1367,7 +1363,7 @@ class _OrderHistoryPage(ctk.CTkFrame):
         ctk.CTkLabel(
             dialog,
             text="Θέλετε σίγουρα να ακυρώσετε αυτή την παραγγελία;",
-            text_color="gray",
+            text_color=_SUBTEXT,
         ).pack(pady=(0, 24))
 
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
@@ -1375,12 +1371,12 @@ class _OrderHistoryPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_frame, text="Όχι", width=120,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=dialog.destroy,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
             btn_frame, text="Ναι, ακύρωση", width=150,
-            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            fg_color=_ERROR, hover_color=_DANGER_HV,
             command=lambda: (dialog.destroy(), self._execute_cancel(order_id)),
         ).pack(side="left")
 
@@ -1407,10 +1403,10 @@ class _OrderHistoryPage(ctk.CTkFrame):
 
 
 _APPT_STATUS_MAP = {
-    'pending':   (" Εκκρεμεί",    ("#e67e22", "#d68910")),
-    'confirmed': ("✔ Επιβεβαιωμένο", ("#27ae60", "#2ecc71")),
-    'done':      ("✔ Ολοκληρώθηκε",  ("#27ae60", "#2ecc71")),
-    'cancelled': ("✘ Ακυρώθηκε",     ("#e74c3c", "#922b21")),
+    'pending':   (" Εκκρεμεί",    _WARNING),
+    'confirmed': ("✔ Επιβεβαιωμένο", _SUCCESS),
+    'done':      ("✔ Ολοκληρώθηκε",  _SUCCESS),
+    'cancelled': ("✘ Ακυρώθηκε",     _ERROR),
 }
 
 
@@ -1499,10 +1495,10 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._list_msg_var = ctk.StringVar()
         ctk.CTkLabel(
             self._list_frame, textvariable=self._list_msg_var,
-            font=ctk.CTkFont(size=12), text_color=("#27ae60", "#2ecc71"), anchor="w",
+            font=ctk.CTkFont(size=12), text_color=_SUCCESS, anchor="w",
         ).grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 4))
 
-        self._list_container = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10)
+        self._list_container = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10, fg_color=_CARD_BG)
         self._list_container.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._list_container.columnconfigure(0, weight=1)
 
@@ -1522,12 +1518,12 @@ class _AppointmentsPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._list_container,
                 text="Δεν έχετε ραντεβού ακόμα.\nΜεταβείτε στα Κομμωτήρια για να κλείσετε ραντεβού.",
-                text_color="gray", justify="center",
+                text_color=_SUBTEXT, justify="center",
             ).grid(row=0, column=0, pady=48)
             return
 
         for i, appt in enumerate(appts):
-            card = ctk.CTkFrame(self._list_container, corner_radius=10)
+            card = ctk.CTkFrame(self._list_container, corner_radius=10, fg_color=_ENTRY_BG, border_width=1, border_color=_BORDER)
             card.grid(row=i, column=0, sticky="ew", padx=8, pady=6)
             card.columnconfigure(0, weight=1)
 
@@ -1539,7 +1535,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                 font=ctk.CTkFont(size=13, weight="bold"),
             ).pack(side="left")
             status_text, status_color = _APPT_STATUS_MAP.get(
-                appt.status, (appt.status, ("gray", "gray"))
+                appt.status, (appt.status, _SUBTEXT)
             )
             ctk.CTkLabel(
                 top, text=status_text, text_color=status_color,
@@ -1557,7 +1553,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                 details += f"   |   Σημείωση: {appt.notes}"
             ctk.CTkLabel(
                 card, text=details, anchor="w",
-                text_color="gray", font=ctk.CTkFont(size=12),
+                text_color=_SUBTEXT, font=ctk.CTkFont(size=12),
             ).pack(fill="x", padx=16, pady=(0, 6))
 
             if appt.status in ("pending", "confirmed"):
@@ -1565,7 +1561,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                 footer.pack(fill="x", padx=12, pady=(0, 10))
                 ctk.CTkButton(
                     footer, text="Τροποποίηση →", width=140, height=28,
-                    fg_color=("#2980b9", "#1a6fa0"), hover_color=("#2471a3", "#155f8a"),
+                    fg_color=_ACCENT, hover_color=_ACCENT_HV,
                     font=ctk.CTkFont(size=11),
                     command=lambda a=appt: self._go_mod_detail(a),
                 ).pack(side="right")
@@ -1582,8 +1578,8 @@ class _AppointmentsPage(ctk.CTkFrame):
                     review_footer = ctk.CTkFrame(card, fg_color="transparent")
                     review_footer.pack(fill="x", padx=12, pady=(0, 10))
                     ctk.CTkButton(
-                        review_footer, text="⭐ Αξιολόγηση", width=140, height=28,
-                        fg_color=("#f39c12", "#d68910"), hover_color=("#d68910", "#b7770d"),
+                        review_footer, text=" Αξιολόγηση", width=140, height=28,
+                        fg_color=_WARNING, hover_color="#b7770d",
                         font=ctk.CTkFont(size=11),
                         command=lambda a=appt: self._go_review_form(a),
                     ).pack(side="right")
@@ -1595,7 +1591,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                     ctk.CTkLabel(
                         card,
                         text=msg_parts[0],
-                        text_color=("gray50", "gray60"),
+                        text_color=_SUBTEXT,
                         font=ctk.CTkFont(size=11),
                         anchor="e",
                     ).pack(fill="x", padx=20, pady=(0, 8))
@@ -1612,7 +1608,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=100,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_list,
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
@@ -1621,11 +1617,11 @@ class _AppointmentsPage(ctk.CTkFrame):
         ).grid(row=0, column=1, sticky="w", padx=20)
         self._svc_salon_lbl = ctk.CTkLabel(
             hdr, text="",
-            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=13),
+            text_color=_SUBTEXT, font=ctk.CTkFont(size=13),
         )
         self._svc_salon_lbl.grid(row=0, column=2, sticky="e", padx=(0, 8))
 
-        self._svc_cards = ctk.CTkScrollableFrame(self._svc_frame, corner_radius=10)
+        self._svc_cards = ctk.CTkScrollableFrame(self._svc_frame, corner_radius=10, fg_color=_CARD_BG)
         self._svc_cards.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._svc_cards.columnconfigure(0, weight=1)
 
@@ -1649,7 +1645,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._svc_cards,
                 text="Παρακαλώ επιλέξτε πρώτα κομμωτήριο\nαπό τη σελίδα «Κομμωτήρια».",
-                text_color="gray", justify="center",
+                text_color=_SUBTEXT, justify="center",
             ).grid(row=0, column=0, pady=48)
             return
 
@@ -1659,12 +1655,12 @@ class _AppointmentsPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._svc_cards,
                 text="Δεν υπάρχουν διαθέσιμες υπηρεσίες για αυτό το κομμωτήριο.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=0, column=0, pady=48)
             return
 
         for i, svc in enumerate(services):
-            card = ctk.CTkFrame(self._svc_cards, corner_radius=10)
+            card = ctk.CTkFrame(self._svc_cards, corner_radius=10, fg_color=_ENTRY_BG, border_width=1, border_color=_BORDER)
             card.grid(row=i, column=0, sticky="ew", padx=8, pady=5)
             card.columnconfigure(0, weight=1)
 
@@ -1677,7 +1673,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 info,
                 text=f"{svc.duration_min} λεπτά  •  {svc.price:.2f} €",
-                text_color="gray", font=ctk.CTkFont(size=12), anchor="w",
+                text_color=_SUBTEXT, font=ctk.CTkFont(size=12), anchor="w",
             ).pack(anchor="w")
 
             ctk.CTkButton(
@@ -1701,7 +1697,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=100,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_svc,
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
@@ -1710,11 +1706,11 @@ class _AppointmentsPage(ctk.CTkFrame):
         ).grid(row=0, column=1, sticky="w", padx=20)
         self._emp_salon_lbl = ctk.CTkLabel(
             hdr, text="",
-            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=13),
+            text_color=_SUBTEXT, font=ctk.CTkFont(size=13),
         )
         self._emp_salon_lbl.grid(row=0, column=2, sticky="e", padx=(0, 8))
 
-        self._emp_cards = ctk.CTkScrollableFrame(self._emp_frame, corner_radius=10)
+        self._emp_cards = ctk.CTkScrollableFrame(self._emp_frame, corner_radius=10, fg_color=_CARD_BG)
         self._emp_cards.grid(row=1, column=0, sticky="nsew", padx=32, pady=(0, 24))
         self._emp_cards.columnconfigure(0, weight=1)
 
@@ -1740,12 +1736,12 @@ class _AppointmentsPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._emp_cards,
                 text="Δεν υπάρχουν διαθέσιμοι υπάλληλοι σε αυτό το κομμωτήριο.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).grid(row=0, column=0, pady=48)
             return
 
         for i, emp in enumerate(employees):
-            card = ctk.CTkFrame(self._emp_cards, corner_radius=10)
+            card = ctk.CTkFrame(self._emp_cards, corner_radius=10, fg_color=_ENTRY_BG, border_width=1, border_color=_BORDER)
             card.grid(row=i, column=0, sticky="ew", padx=8, pady=5)
             card.columnconfigure(0, weight=1)
             ctk.CTkLabel(
@@ -1774,7 +1770,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=100,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=lambda: self._cal_back_action(),
         ).grid(row=0, column=0, sticky="w")
         self._cal_title_label = ctk.CTkLabel(
@@ -1784,18 +1780,18 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cal_title_label.grid(row=0, column=1, sticky="w", padx=20)
         self._cal_salon_lbl = ctk.CTkLabel(
             hdr, text="",
-            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=13),
+            text_color=_SUBTEXT, font=ctk.CTkFont(size=13),
         )
         self._cal_salon_lbl.grid(row=0, column=2, sticky="e", padx=(0, 8))
 
         # week navigation
-        week_nav = ctk.CTkFrame(self._cal_frame, corner_radius=8)
+        week_nav = ctk.CTkFrame(self._cal_frame, corner_radius=8, fg_color=_CARD_BG)
         week_nav.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 8))
         week_nav.columnconfigure(1, weight=1)
         ctk.CTkButton(
             week_nav, text="◀  Προηγ. εβδομάδα", width=170,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._prev_week,
         ).grid(row=0, column=0, padx=12, pady=10)
         self._week_label = ctk.CTkLabel(
@@ -1807,12 +1803,12 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             week_nav, text="Επόμ. εβδομάδα  ▶", width=170,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._next_week,
         ).grid(row=0, column=2, padx=12, pady=10)
 
         # day buttons + slot grid (built dynamically)
-        self._day_slot_area = ctk.CTkScrollableFrame(self._cal_frame, corner_radius=10)
+        self._day_slot_area = ctk.CTkScrollableFrame(self._cal_frame, corner_radius=10, fg_color=_CARD_BG)
         self._day_slot_area.grid(row=2, column=0, sticky="nsew", padx=32, pady=(0, 24))
 
     def _go_cal(self):
@@ -1883,8 +1879,8 @@ class _AppointmentsPage(ctk.CTkFrame):
             label = f"{GR_DAYS[day.weekday()]}\n{day.strftime('%d/%m')}"
             btn = ctk.CTkButton(
                 day_row, text=label, width=80, height=52,
-                fg_color=("gray80", "gray30") if day >= today else ("gray60", "gray20"),
-                hover_color=("gray70", "gray40"),
+                fg_color=_ACCENT if day >= today else _BORDER,
+                hover_color=_ACCENT_HV,
                 state="normal" if day >= today else "disabled",
                 command=lambda dt=day: self._pick_day(dt),
             )
@@ -1915,7 +1911,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._slots_container,
                 text=f"Δεν υπάρχουν διαθέσιμες ώρες για {day.strftime('%d/%m/%Y')}.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).pack(pady=32)
             return
 
@@ -1937,7 +1933,7 @@ class _AppointmentsPage(ctk.CTkFrame):
                 wrap,
                 text=f"{slot['time_str']}{emp_note}",
                 width=130, height=36,
-                fg_color=("#2980b9", "#1a6fa0"), hover_color=("#2471a3", "#155f8a"),
+                fg_color=_ACCENT, hover_color=_ACCENT_HV,
                 command=lambda s=slot: self._pick_slot(s),
             ).pack(side="left", padx=4, pady=4)
 
@@ -1955,7 +1951,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._confirm_frame.columnconfigure(0, weight=1)
         self._confirm_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._confirm_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._confirm_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -1965,14 +1961,14 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         self._confirm_details = ctk.CTkLabel(
             card, text="", justify="left",
-            font=ctk.CTkFont(size=13), text_color="gray",
+            font=ctk.CTkFont(size=13), text_color=_SUBTEXT,
         )
         self._confirm_details.pack(padx=52, pady=(0, 8))
 
         ctk.CTkLabel(card, text="Σημειώσεις (προαιρετικά):", anchor="w").pack(
             padx=52, anchor="w"
         )
-        self._notes_entry = ctk.CTkEntry(card, width=340, placeholder_text="π.χ. αλλεργία σε χρώμα…")
+        self._notes_entry = ctk.CTkEntry(card, width=340, placeholder_text="π.χ. αλλεργία σε χρώμα…", fg_color=_ENTRY_BG, border_color=_BORDER, text_color=_TEXT, placeholder_text_color=_MUTED)
         self._notes_entry.pack(padx=52, pady=(4, 16))
 
         self._confirm_msg = ctk.StringVar()
@@ -1987,7 +1983,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="← Πίσω", width=110,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_cal,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
@@ -2034,7 +2030,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             if "δεν είναι πλέον διαθέσιμη" in str(e):
                 self._go_unavailable(str(e))
             else:
-                self._confirm_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+                self._confirm_msg_label.configure(text_color=_ERROR)
                 self._confirm_msg.set(str(e))
 
     # ALT FLOW — slot taken
@@ -2043,14 +2039,14 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._unavailable_frame.columnconfigure(0, weight=1)
         self._unavailable_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._unavailable_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._unavailable_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
         ctk.CTkLabel(
             card, text="⚠  Ώρα μη Διαθέσιμη",
             font=ctk.CTkFont(size=18, weight="bold"),
         ).pack(padx=52, pady=(36, 10))
         self._unavail_msg = ctk.CTkLabel(
-            card, text="", text_color="gray", justify="center", wraplength=360,
+            card, text="", text_color=_SUBTEXT, justify="center", wraplength=360,
         )
         self._unavail_msg.pack(padx=52, pady=(0, 28))
         ctk.CTkButton(
@@ -2071,7 +2067,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._mod_detail_frame.columnconfigure(0, weight=1)
         self._mod_detail_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._mod_detail_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._mod_detail_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         hdr = ctk.CTkFrame(card, fg_color="transparent")
@@ -2080,7 +2076,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=90,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_list,
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
@@ -2090,7 +2086,7 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         self._mod_detail_text = ctk.CTkLabel(
             card, text="", justify="left",
-            font=ctk.CTkFont(size=13), text_color="gray",
+            font=ctk.CTkFont(size=13), text_color=_SUBTEXT,
         )
         self._mod_detail_text.pack(padx=40, pady=(4, 8), anchor="w")
 
@@ -2107,7 +2103,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             self._mod_appt = appt
 
         a = self._mod_appt
-        status_text, status_color = _APPT_STATUS_MAP.get(a.status, (a.status, ("gray", "gray")))
+        status_text, status_color = _APPT_STATUS_MAP.get(a.status, (a.status, _SUBTEXT))
 
         self._mod_detail_text.configure(text=(
             f"Υπηρεσία:    {a.service_name}\n"
@@ -2125,19 +2121,19 @@ class _AppointmentsPage(ctk.CTkFrame):
         if a.status in ("pending", "confirmed"):
             ctk.CTkButton(
                 self._mod_detail_btns, text=" Αναπρογραμματισμός", width=210,
-                fg_color=("#2980b9", "#1a6fa0"), hover_color=("#2471a3", "#155f8a"),
+                fg_color=_ACCENT, hover_color=_ACCENT_HV,
                 command=self._go_mod_cal,
             ).pack(side="left", padx=(0, 12))
             ctk.CTkButton(
                 self._mod_detail_btns, text="✘ Ακύρωση", width=130,
-                fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+                fg_color=_ERROR, hover_color=_DANGER_HV,
                 command=self._go_cancel_confirm,
             ).pack(side="left")
         else:
             ctk.CTkLabel(
                 self._mod_detail_btns,
                 text="Δεν είναι δυνατή η τροποποίηση αυτού του ραντεβού.",
-                text_color="gray",
+                text_color=_SUBTEXT,
             ).pack()
 
         self._hide_all()
@@ -2149,7 +2145,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._mod_confirm_frame.columnconfigure(0, weight=1)
         self._mod_confirm_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._mod_confirm_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._mod_confirm_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -2159,7 +2155,7 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         self._mod_confirm_details = ctk.CTkLabel(
             card, text="", justify="left",
-            font=ctk.CTkFont(size=13), text_color="gray",
+            font=ctk.CTkFont(size=13), text_color=_SUBTEXT,
         )
         self._mod_confirm_details.pack(padx=52, pady=(0, 16))
 
@@ -2175,7 +2171,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="← Πίσω", width=110,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_mod_cal,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
@@ -2212,7 +2208,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             if "δεν είναι πλέον διαθέσιμη" in str(e):
                 self._go_unavailable(str(e), back_fn=self._go_mod_cal)
             else:
-                self._mod_confirm_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+                self._mod_confirm_msg_label.configure(text_color=_ERROR)
                 self._mod_confirm_msg.set(str(e))
 
     # UC 2.12 — CANCEL CONFIRM
@@ -2221,7 +2217,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._cancel_confirm_frame.columnconfigure(0, weight=1)
         self._cancel_confirm_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._cancel_confirm_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._cancel_confirm_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -2230,7 +2226,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ).pack(padx=52, pady=(36, 10))
 
         self._cancel_confirm_text = ctk.CTkLabel(
-            card, text="", text_color="gray", justify="center",
+            card, text="", text_color=_SUBTEXT, justify="center",
         )
         self._cancel_confirm_text.pack(padx=52, pady=(0, 20))
 
@@ -2246,12 +2242,12 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="Όχι, επιστροφή", width=150,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_mod_detail,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
             btn_row, text="Ναι, ακύρωση", width=150,
-            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            fg_color=_ERROR, hover_color=_DANGER_HV,
             command=self._execute_cancel,
         ).pack(side="left")
 
@@ -2276,7 +2272,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             self.after(5000, lambda: self._list_msg_var.set(""))
             self._go_list()
         except AppointmentError as e:
-            self._cancel_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+            self._cancel_msg_label.configure(text_color=_ERROR)
             self._cancel_msg.set(str(e))
    
     def _build_review_form_frame(self):
@@ -2284,7 +2280,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._review_form_frame.columnconfigure(0, weight=1)
         self._review_form_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkScrollableFrame(self._review_form_frame, corner_radius=16, width=560, height=620)
+        card = ctk.CTkScrollableFrame(self._review_form_frame, corner_radius=16, width=560, height=620, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         # header
@@ -2294,7 +2290,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             hdr, text="← Πίσω", width=100,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_list,
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
@@ -2305,12 +2301,12 @@ class _AppointmentsPage(ctk.CTkFrame):
         # appointment info
         self._rev_info_label = ctk.CTkLabel(
             card, text="", justify="left",
-            font=ctk.CTkFont(size=13), text_color="gray",
+            font=ctk.CTkFont(size=13), text_color=_SUBTEXT,
         )
         self._rev_info_label.pack(anchor="w", padx=52, pady=(16, 0))
 
         # ── Section: Κομμωτής ─────────────────────────────────────────
-        self._rev_emp_section = ctk.CTkFrame(card, corner_radius=10)
+        self._rev_emp_section = ctk.CTkFrame(card, corner_radius=10, fg_color=_ENTRY_BG, border_width=1, border_color=_BORDER)
         self._rev_emp_section.pack(fill="x", padx=40, pady=(20, 4))
 
         ctk.CTkLabel(
@@ -2321,7 +2317,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ).pack(anchor="w", padx=16, pady=(12, 0))
 
         self._rev_emp_target_lbl = ctk.CTkLabel(
-            self._rev_emp_section, text="", text_color="gray",
+            self._rev_emp_section, text="", text_color=_SUBTEXT,
             font=ctk.CTkFont(size=12), anchor="w",
         )
         self._rev_emp_target_lbl.pack(anchor="w", padx=16, pady=(0, 6))
@@ -2335,8 +2331,8 @@ class _AppointmentsPage(ctk.CTkFrame):
                 width=40, height=40,
                 font=ctk.CTkFont(size=26),
                 fg_color="transparent",
-                hover_color=("gray85", "gray25"),
-                text_color=("#f39c12", "#f5b041"),
+                hover_color=_MUTED,
+                text_color=_WARNING,
                 corner_radius=6,
                 command=lambda n=i: self._set_rating(n),
             )
@@ -2344,7 +2340,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             self._star_btns.append(btn)
 
         self._rev_rating_hint = ctk.CTkLabel(
-            self._rev_emp_section, text="", text_color="gray",
+            self._rev_emp_section, text="", text_color=_SUBTEXT,
             font=ctk.CTkFont(size=11),
         )
         self._rev_rating_hint.pack(anchor="w", padx=16, pady=(2, 0))
@@ -2356,19 +2352,21 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._rev_comment = ctk.CTkEntry(
             self._rev_emp_section, width=440,
             placeholder_text="Γράψτε την εμπειρία σας με τον κομμωτή…",
+            fg_color=_ENTRY_BG, border_color=_BORDER,
+            text_color=_TEXT, placeholder_text_color=_MUTED,
         )
         self._rev_comment.pack(anchor="w", padx=16, pady=(0, 14))
 
         self._rev_emp_done_lbl = ctk.CTkLabel(
             self._rev_emp_section,
             text="✔ Έχετε ήδη αξιολογήσει τον κομμωτή για αυτό το ραντεβού.",
-            text_color=("gray50", "gray60"),
+            text_color=_SUBTEXT,
             font=ctk.CTkFont(size=12),
         )
         # (αναδιπλώνεται μόνο όταν χρειάζεται)
 
         # ── Section: Κομμωτήριο ───────────────────────────────────────
-        self._rev_salon_section = ctk.CTkFrame(card, corner_radius=10)
+        self._rev_salon_section = ctk.CTkFrame(card, corner_radius=10, fg_color=_ENTRY_BG, border_width=1, border_color=_BORDER)
         self._rev_salon_section.pack(fill="x", padx=40, pady=(8, 4))
 
         ctk.CTkLabel(
@@ -2379,7 +2377,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ).pack(anchor="w", padx=16, pady=(12, 0))
 
         self._rev_salon_target_lbl = ctk.CTkLabel(
-            self._rev_salon_section, text="", text_color="gray",
+            self._rev_salon_section, text="", text_color=_SUBTEXT,
             font=ctk.CTkFont(size=12), anchor="w",
         )
         self._rev_salon_target_lbl.pack(anchor="w", padx=16, pady=(0, 6))
@@ -2393,8 +2391,8 @@ class _AppointmentsPage(ctk.CTkFrame):
                 width=40, height=40,
                 font=ctk.CTkFont(size=26),
                 fg_color="transparent",
-                hover_color=("gray85", "gray25"),
-                text_color=("#f39c12", "#f5b041"),
+                hover_color=_MUTED,
+                text_color=_WARNING,
                 corner_radius=6,
                 command=lambda n=i: self._set_salon_rating(n),
             )
@@ -2402,7 +2400,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             self._salon_star_btns.append(btn)
 
         self._rev_salon_rating_hint = ctk.CTkLabel(
-            self._rev_salon_section, text="", text_color="gray",
+            self._rev_salon_section, text="", text_color=_SUBTEXT,
             font=ctk.CTkFont(size=11),
         )
         self._rev_salon_rating_hint.pack(anchor="w", padx=16, pady=(2, 0))
@@ -2414,20 +2412,22 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._rev_salon_comment = ctk.CTkEntry(
             self._rev_salon_section, width=440,
             placeholder_text="Γράψτε την εμπειρία σας με το κομμωτήριο…",
+            fg_color=_ENTRY_BG, border_color=_BORDER,
+            text_color=_TEXT, placeholder_text_color=_MUTED,
         )
         self._rev_salon_comment.pack(anchor="w", padx=16, pady=(0, 14))
 
         self._rev_salon_done_lbl = ctk.CTkLabel(
             self._rev_salon_section,
             text="✔ Έχετε ήδη αξιολογήσει το κομμωτήριο για αυτό το ραντεβού.",
-            text_color=("gray50", "gray60"),
+            text_color=_SUBTEXT,
             font=ctk.CTkFont(size=12),
         )
 
         self._rev_salon_unavailable_lbl = ctk.CTkLabel(
             self._rev_salon_section,
             text="(Το ραντεβού δεν συνδέεται με κομμωτήριο.)",
-            text_color=("gray50", "gray60"),
+            text_color=_SUBTEXT,
             font=ctk.CTkFont(size=12),
         )
 
@@ -2435,7 +2435,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._rev_form_msg = ctk.StringVar()
         self._rev_form_msg_label = ctk.CTkLabel(
             card, textvariable=self._rev_form_msg,
-            text_color=("#e74c3c", "#e74c3c"),
+            text_color=_ERROR,
             font=ctk.CTkFont(size=12),
         )
         self._rev_form_msg_label.pack(anchor="w", padx=52, pady=(12, 0))
@@ -2559,7 +2559,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._review_preview_frame.columnconfigure(0, weight=1)
         self._review_preview_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._review_preview_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._review_preview_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -2569,14 +2569,14 @@ class _AppointmentsPage(ctk.CTkFrame):
 
         self._rev_preview_text = ctk.CTkLabel(
             card, text="", justify="left",
-            font=ctk.CTkFont(size=13), text_color="gray",
+            font=ctk.CTkFont(size=13), text_color=_SUBTEXT,
         )
         self._rev_preview_text.pack(padx=60, pady=(0, 8))
 
         self._rev_preview_msg = ctk.StringVar()
         self._rev_preview_msg_label = ctk.CTkLabel(
             card, textvariable=self._rev_preview_msg,
-            font=ctk.CTkFont(size=12), text_color=("#e74c3c", "#e74c3c"),
+            font=ctk.CTkFont(size=12), text_color=_ERROR,
         )
         self._rev_preview_msg_label.pack(padx=60, pady=(0, 8))
 
@@ -2585,13 +2585,13 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="← Επεξεργασία", width=140,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_review_form,
         ).pack(side="left", padx=(0, 8))
         ctk.CTkButton(
             btn_row, text="Ακύρωση", width=110,
-            fg_color=("gray80", "gray30"), hover_color=("gray70", "gray25"),
-            text_color=("gray10", "gray90"),
+            fg_color=_MUTED, hover_color=_BORDER,
+            text_color=_TEXT,
             command=self._go_review_cancel_confirm,
         ).pack(side="left", padx=(0, 8))
         ctk.CTkButton(
@@ -2680,7 +2680,7 @@ class _AppointmentsPage(ctk.CTkFrame):
             self.after(6000, lambda: self._list_msg_var.set(""))
             self._go_list()
         except ReviewError as e:
-            self._rev_preview_msg_label.configure(text_color=("#e74c3c", "#e74c3c"))
+            self._rev_preview_msg_label.configure(text_color=_ERROR)
             self._rev_preview_msg.set(str(e))
 
     # UC 2.6 — REVIEW CANCEL CONFIRM 
@@ -2689,7 +2689,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         self._review_cancel_confirm_frame.columnconfigure(0, weight=1)
         self._review_cancel_confirm_frame.rowconfigure(0, weight=1)
 
-        card = ctk.CTkFrame(self._review_cancel_confirm_frame, corner_radius=16)
+        card = ctk.CTkFrame(self._review_cancel_confirm_frame, corner_radius=16, fg_color=_CARD_BG)
         card.grid(row=0, column=0)
 
         ctk.CTkLabel(
@@ -2700,7 +2700,7 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text="Θέλετε σίγουρα να ακυρώσετε την υποβολή\nτης αξιολόγησης;",
-            text_color="gray", justify="center",
+            text_color=_SUBTEXT, justify="center",
         ).pack(padx=60, pady=(0, 24))
 
         btn_row = ctk.CTkFrame(card, fg_color="transparent")
@@ -2708,12 +2708,12 @@ class _AppointmentsPage(ctk.CTkFrame):
         ctk.CTkButton(
             btn_row, text="Όχι, επιστροφή", width=160,
             fg_color="transparent", border_width=1,
-            text_color=("gray20", "gray80"), hover_color=("gray85", "gray25"),
+            text_color=_SUBTEXT, hover_color=_MUTED,
             command=self._go_review_preview,
         ).pack(side="left", padx=(0, 12))
         ctk.CTkButton(
             btn_row, text="Ναι, ακύρωση", width=150,
-            fg_color=("#e74c3c", "#922b21"), hover_color=("#c0392b", "#7b241c"),
+            fg_color=_ERROR, hover_color=_DANGER_HV,
             command=self._go_list,
         ).pack(side="left")
 
