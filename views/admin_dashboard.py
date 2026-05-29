@@ -3,13 +3,13 @@ from controllers.appointment_controller import AppointmentController
 from controllers.salon_controller import SalonController
 from services.errors import SalonError
 from views.base_dashboard import BaseDashboard
-from controllers.auth_controller import AuthController
 from views.notifications_page import NotificationsPage
 from controllers.eshop_controller import EShopController, EShopError
 from pathlib import Path
 from tkinter import filedialog
 from controllers.service_controller import ServiceController, ServiceError
 from controllers.inventory_controller import InventoryController, InventoryError
+from utils.session import Session
 
 _BG        = "#e9eff4"
 _CARD_BG   = "#f4f7f9"
@@ -49,12 +49,17 @@ class AdminDashboard(BaseDashboard):
 
 # pages
 
+def _admin_salon_id() -> int | None:
+    user = Session.current_user()
+    return user.salon_id if user else None
+
+
 class _HomePage(ctk.CTkFrame):
     _STATS = [
-        (" ", "Κομμωτήρια", lambda: 0),
-        (" ", "Χρήστες",    lambda: AuthController.count_users()),
-        (" ", "Υπηρεσίες",  lambda: 0),
-        (" ", "Ραντεβού",   lambda: 0),
+        (" ", "Κομμωτήρια", lambda: 1 if _admin_salon_id() else 0),
+        (" ", "Υπηρεσίες",  lambda: len(SalonController.get_services(_admin_salon_id())) if _admin_salon_id() else 0),
+        (" ", "Υπάλληλοι",  lambda: len(SalonController.get_employees(_admin_salon_id())) if _admin_salon_id() else 0),
+        (" ", "Ραντεβού",   lambda: AppointmentController.count(_admin_salon_id()) if _admin_salon_id() else 0),
     ]
 
     def __init__(self, master):
@@ -117,11 +122,6 @@ class _SalonsPage(ctk.CTkFrame):
             hdr, text="Κομμωτήρια",
             font=ctk.CTkFont(size=20, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(
-            hdr, text="+ Νέο Κομμωτήριο", width=165,
-            fg_color=_ACCENT, hover_color=_ACCENT_HV, text_color="#ffffff",
-            command=self._show_form,
-        ).grid(row=0, column=1, sticky="e")
 
         self._table = ctk.CTkScrollableFrame(self._list_frame, corner_radius=10,
                                               fg_color=_CARD_BG)
@@ -144,12 +144,17 @@ class _SalonsPage(ctk.CTkFrame):
             row=1, column=0, columnspan=len(self._COLS), sticky="ew", padx=4
         )
 
-        salons = SalonController.get_all()
+        user = Session.current_user()
+        if user and user.salon_id:
+            salon = SalonController.get_by_id(user.salon_id)
+            salons = [salon] if salon else []
+        else:
+            salons = []
 
         if not salons:
             ctk.CTkLabel(
                 self._table,
-                text="Δεν υπάρχουν κομμωτήρια ακόμα. Πατήστε «+ Νέο Κομμωτήριο».",
+                text="Δεν έχει αντιστοιχιστεί κομμωτήριο στον λογαριασμό σας.",
                 text_color=_SUBTEXT,
             ).grid(row=2, column=0, columnspan=len(self._COLS), pady=24)
             return
@@ -708,7 +713,9 @@ class _AppointmentsPage(ctk.CTkFrame):
             self._table.columnconfigure(i, weight=1)
 
     def refresh(self):
-        self._all_rows = AppointmentController.get_all()
+        user = Session.current_user()
+        salon_id = user.salon_id if user else None
+        self._all_rows = AppointmentController.get_all(salon_id)
         self._refresh_employee_combo()
         self._apply_filters()
 

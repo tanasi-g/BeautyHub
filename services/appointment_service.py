@@ -122,12 +122,12 @@ class AppointmentService:
         return appt_id
 
     @staticmethod
-    def count() -> int:
-        return AppointmentRepository.count()
+    def count(salon_id: int | None = None) -> int:
+        return AppointmentRepository.count(salon_id)
 
     @staticmethod
-    def get_all() -> list[dict]:
-        return AppointmentRepository.get_all()
+    def get_all(salon_id: int | None = None) -> list[dict]:
+        return AppointmentRepository.get_all(salon_id)
 
     @staticmethod
     def get_by_customer(customer_id: int) -> list[AppointmentDetail]:

@@ -74,16 +74,20 @@ class AppointmentRepository:
         return count > 0
 
     @staticmethod
-    def count() -> int:
+    def count(salon_id: int | None = None) -> int:
+        if salon_id is not None:
+            return Database.get_connection().execute(
+                "SELECT COUNT(*) FROM appointments WHERE salon_id = ?",
+                (salon_id,),
+            ).fetchone()[0]
         return Database.get_connection().execute(
             "SELECT COUNT(*) FROM appointments"
         ).fetchone()[0]
 
     @staticmethod
-    def get_all() -> list[dict]:
-        rows = Database.get_connection().execute(
-            """
-            SELECT a.id, a.scheduled_at, a.status, a.notes,
+    def get_all(salon_id: int | None = None) -> list[dict]:
+        sql = """
+            SELECT a.id, a.scheduled_at, a.status, a.notes, a.salon_id,
                    s.name  AS service_name, s.duration_min, s.price,
                    c.first_name || ' ' || c.last_name AS customer_name,
                    e.first_name || ' ' || e.last_name AS employee_name
@@ -91,9 +95,13 @@ class AppointmentRepository:
               JOIN services s ON s.id = a.service_id
               JOIN users    c ON c.id = a.customer_id
               JOIN users    e ON e.id = a.employee_id
-             ORDER BY a.scheduled_at DESC
-            """,
-        ).fetchall()
+            """
+        params: tuple = ()
+        if salon_id is not None:
+            sql += " WHERE a.salon_id = ?"
+            params = (salon_id,)
+        sql += " ORDER BY a.scheduled_at DESC"
+        rows = Database.get_connection().execute(sql, params).fetchall()
         return [
             {
                 "id":            r["id"],
@@ -105,6 +113,7 @@ class AppointmentRepository:
                 "customer_name": r["customer_name"],
                 "employee_name": r["employee_name"],
                 "notes":         r["notes"],
+                "salon_id":      r["salon_id"],
             }
             for r in rows
         ]

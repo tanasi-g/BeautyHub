@@ -16,6 +16,10 @@ class SalonService:
         return SalonRepository.get_all()
 
     @staticmethod
+    def get_by_id(salon_id: int) -> Salon | None:
+        return SalonRepository.get_by_id(salon_id)
+
+    @staticmethod
     def search(
         name_kw: str = "",
         city_kw: str = "",

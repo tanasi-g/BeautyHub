@@ -40,12 +40,12 @@ class AppointmentController:
         )
 
     @staticmethod
-    def count() -> int:
-        return AppointmentService.count()
+    def count(salon_id: int | None = None) -> int:
+        return AppointmentService.count(salon_id)
 
     @staticmethod
-    def get_all() -> list[dict]:
-        return AppointmentService.get_all()
+    def get_all(salon_id: int | None = None) -> list[dict]:
+        return AppointmentService.get_all(salon_id)
 
     @staticmethod
     def get_by_customer(customer_id: int) -> list[AppointmentDetail]:

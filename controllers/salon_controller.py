@@ -17,6 +17,10 @@ class SalonController:
         return SalonService.get_all()
 
     @staticmethod
+    def get_by_id(salon_id: int) -> Salon | None:
+        return SalonService.get_by_id(salon_id)
+
+    @staticmethod
     def search(
         name_kw: str = "",
         city_kw: str = "",
