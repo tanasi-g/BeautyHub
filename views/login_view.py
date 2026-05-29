@@ -5,60 +5,86 @@ from controllers.auth_controller import AuthController, AuthError
 from utils.session import Session
 
 
+_BG        = "#e9eff4" 
+_CARD_BG   = "#f4f7f9" 
+_ACCENT    = "#4a6984" 
+_ACCENT_HV = "#1d2d44"
+_MUTED     = "#cbd9e0"
+_TEXT      = "#2b211a" 
+_SUBTEXT   = "#5c534c"
+_ENTRY_BG  = "#ffffff"
+_BORDER    = "#dbe3e8"
+_ERROR     = "#c0392b"
+
+
 class LoginView(ctk.CTkFrame):
     def __init__(self, master, on_login_success):
-        super().__init__(master, fg_color="transparent")
+        super().__init__(master, fg_color=_BG)
         self._on_login_success = on_login_success
         self._show_register = False
         self._build_ui()
-
 
     # ------------------------------------------------------------------ build
     def _build_ui(self):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
 
-        self._card = ctk.CTkFrame(self, corner_radius=16)
-        self._card.grid(row=0, column=0)
-        self._card.pack_propagate(False)
-        self._card.configure(width=350, height=490)
+        # Outer card with soft shadow simulation via a slightly darker frame
+        shadow = ctk.CTkFrame(self, fg_color=_MUTED, corner_radius=20)
+        shadow.grid(row=0, column=0)
+        shadow.pack_propagate(False)
+        shadow.configure(width=378, height=506)
 
+        self._card = ctk.CTkFrame(shadow, fg_color=_CARD_BG, corner_radius=18, width=370, height=498)
+        self._card.place(relx=0.5, rely=0.5, anchor="center")
+        self._card.pack_propagate(False)
+
+        # Logo
         logo = ctk.CTkImage(
             light_image=Image.open("resources/logo.jpeg"),
             dark_image=Image.open("resources/logo.jpeg"),
-            size=(150, 80),
+            size=(120, 64),
         )
-        ctk.CTkLabel(self._card, image=logo, text="").pack(pady=(36, 0))
+        ctk.CTkLabel(self._card, image=logo, text="").pack(pady=(28, 0))
+
+        # Title + decorative separator
         ctk.CTkLabel(
-            self._card, text="Σύστημα Διαχείρισης",
-            font=ctk.CTkFont(size=13), text_color="gray",
-        ).pack(pady=(0, 20))
+            self._card,
+            text="Καλωσήρθατε",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=_TEXT,
+        ).pack(pady=(8, 0))
 
-        # _form_frame δεν καταστρέφεται ποτέ — μόνο τα παιδιά του
+
+        # Pink divider
+        sep = ctk.CTkFrame(self._card, fg_color=_MUTED, height=2, corner_radius=1)
+        sep.pack(fill="x", padx=30, pady=(0, 12))
+
+        # Form area
         self._form_frame = ctk.CTkFrame(self._card, fg_color="transparent")
-        self._form_frame.pack(fill="x", padx=16)
+        self._form_frame.pack(fill="x", padx=24)
 
-        # error label
+        # Error label
         self._error_var = ctk.StringVar()
         ctk.CTkLabel(
             self._card,
             textvariable=self._error_var,
-            text_color="#e74c3c",
-            font=ctk.CTkFont(size=12),
+            text_color=_ERROR,
+            font=ctk.CTkFont(size=11),
             wraplength=320,
-        ).pack(pady=(6, 0))
+        ).pack(pady=(4, 0))
 
-        # toggle link
+        # Toggle link
         self._toggle_btn = ctk.CTkButton(
             self._card,
-            text="Δεν έχετε λογαριασμό; Εγγραφή",
+            text="Δεν έχετε λογαριασμό; Εγγραφή →",
             fg_color="transparent",
-            hover_color=("gray90", "gray20"),
-            text_color=("gray40", "gray60"),
-            font=ctk.CTkFont(size=12, underline=True),
+            hover_color="#fff0f3",
+            text_color=_ACCENT,
+            font=ctk.CTkFont(size=11, underline=True),
             command=self._toggle_mode,
         )
-        self._toggle_btn.pack(pady=(8, 24))
+        self._toggle_btn.pack(pady=(6, 16))
 
         self._build_login_form()
 
@@ -66,32 +92,50 @@ class LoginView(ctk.CTkFrame):
         for w in self._form_frame.winfo_children():
             w.destroy()
 
-    # ------------------------------------------------------------------ login
+    def _label(self, parent, text):
+        ctk.CTkLabel(
+            parent, text=text, anchor="w",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=_SUBTEXT,
+        ).pack(fill="x")
+
+    def _entry(self, parent, placeholder, secret=False, height=38):
+        e = ctk.CTkEntry(
+            parent,
+            placeholder_text=placeholder,
+            show="•" if secret else "",
+            height=height,
+            fg_color=_ENTRY_BG,
+            border_color=_BORDER,
+            border_width=1,
+            text_color=_TEXT,
+            placeholder_text_color=_MUTED,
+            corner_radius=10,
+        )
+        e.pack(fill="x", pady=(2, 10))
+        return e
+
+    #  login
     def _build_login_form(self):
         self._clear_form()
-        self._card.configure(height=490)
+        self._card.master.configure(height=506)
+        self._card.configure(height=498)
         self._show_register = False
 
-        ctk.CTkLabel(self._form_frame, text="Όνομα χρήστη", anchor="w").pack(fill="x")
-        self._username_entry = ctk.CTkEntry(
-            self._form_frame, placeholder_text="π.χ. maria_k", height=38
-        )
-        self._username_entry.pack(fill="x", pady=(2, 12))
+        self._label(self._form_frame, "ΟΝΟΜΑ ΧΡΗΣΤΗ")
+        self._username_entry = self._entry(self._form_frame, "π.χ. maria_k")
 
-        ctk.CTkLabel(self._form_frame, text="Κωδικός πρόσβασης", anchor="w").pack(fill="x")
-        self._password_entry = ctk.CTkEntry(
-            self._form_frame, placeholder_text="••••••••", show="•", height=38
-        )
-        self._password_entry.pack(fill="x", pady=(2, 20))
+        self._label(self._form_frame, "ΚΩΔΙΚΟΣ ΠΡΟΣΒΑΣΗΣ")
+        self._password_entry = self._entry(self._form_frame, "••••••••", secret=True)
 
-        # eye button μέσα στο entry με place()
+        # Eye button inside password entry
         self._eye_btn = ctk.CTkButton(
             self._password_entry,
-            text="👁", width=32, height=28,
+            text="👁", width=30, height=26,
             fg_color="transparent",
-            hover_color=("gray85", "gray25"),
-            text_color=("gray40", "gray60"),
-            font=ctk.CTkFont(size=15),
+            hover_color=_BG,
+            text_color=_SUBTEXT,
+            font=ctk.CTkFont(size=14),
             command=self._toggle_password,
         )
         self._eye_btn.place(relx=1.0, rely=0.5, anchor="e", x=-4)
@@ -100,59 +144,79 @@ class LoginView(ctk.CTkFrame):
         self._password_entry.bind("<Return>", lambda _: self._do_login())
 
         ctk.CTkButton(
-            self._form_frame, text="Σύνδεση", height=40,
+            self._form_frame,
+            text="Σύνδεση  →",
+            height=42,
+            fg_color=_ACCENT,
+            hover_color=_ACCENT_HV,
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=12,
             command=self._do_login,
-        ).pack(fill="x")
+        ).pack(fill="x", pady=(4, 0))
 
-    # ---------------------------------------------------------------- register
+    #  register
     def _build_register_form(self):
         self._clear_form()
-        self._card.configure(height=570)
+        self._card.master.configure(height=590)
+        self._card.configure(height=582)
         self._show_register = True
 
-        # scrollable area μέσα στο σταθερό _form_frame
         scroll = ctk.CTkScrollableFrame(
             self._form_frame, fg_color="transparent", height=310
         )
         scroll.pack(fill="x")
 
         fields = [
-            ("Όνομα χρήστη *",       "_reg_username", False, "π.χ. maria_k"),
-            ("Email *",               "_reg_email",    False, "email@example.com"),
-            ("Όνομα *",               "_reg_first",    False, "Μαρία"),
-            ("Επώνυμο *",             "_reg_last",     False, "Κατσαρού"),
-            ("Τηλέφωνο",              "_reg_phone",    False, "6900000000"),
-            ("Κωδικός *",             "_reg_pw",       True,  "••••••••"),
-            ("Επιβεβαίωση κωδικού *", "_reg_pw2",      True,  "••••••••"),
+            ("ΟΝΟΜΑ ΧΡΗΣΤΗ *",       "_reg_username", False, "π.χ. maria_k"),
+            ("EMAIL *",               "_reg_email",    False, "email@example.com"),
+            ("ΟΝΟΜΑ *",               "_reg_first",    False, "Μαρία"),
+            ("ΕΠΩΝΥΜΟ *",             "_reg_last",     False, "Κατσαρού"),
+            ("ΤΗΛΕΦΩΝΟ",              "_reg_phone",    False, "6900000000"),
+            ("ΚΩΔΙΚΟΣ *",             "_reg_pw",       True,  "••••••••"),
+            ("ΕΠΙΒΕΒΑΙΩΣΗ ΚΩΔΙΚΟΥ *", "_reg_pw2",      True,  "••••••••"),
         ]
         for label, attr, secret, ph in fields:
-            ctk.CTkLabel(
-                scroll, text=label, anchor="w",
-                font=ctk.CTkFont(size=11),
-            ).pack(fill="x")
+            self._label(scroll, label)
+            entry = self._entry(scroll, ph, secret=secret, height=32)
+            # re-pack with smaller bottom padding for compact register form
+            entry.pack_forget()
             entry = ctk.CTkEntry(
                 scroll,
                 placeholder_text=ph,
                 show="•" if secret else "",
                 height=32,
+                fg_color=_ENTRY_BG,
+                border_color=_BORDER,
+                border_width=1,
+                text_color=_TEXT,
+                placeholder_text_color=_MUTED,
+                corner_radius=10,
             )
             entry.pack(fill="x", pady=(2, 6))
             setattr(self, attr, entry)
 
         ctk.CTkButton(
-            scroll, text="Εγγραφή", height=38,
+            scroll,
+            text="Εγγραφή  →",
+            height=38,
+            fg_color=_ACCENT,
+            hover_color=_ACCENT_HV,
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=12,
             command=self._do_register,
-        ).pack(fill="x", pady=(6, 0))
+        ).pack(fill="x", pady=(8, 0))
 
-    # ---------------------------------------------------------------- actions
+    #  actions
     def _toggle_mode(self):
         self._error_var.set("")
         if self._show_register:
             self._build_login_form()
-            self._toggle_btn.configure(text="Δεν έχετε λογαριασμό; Εγγραφή")
+            self._toggle_btn.configure(text="Δεν έχετε λογαριασμό; Εγγραφή →")
         else:
             self._build_register_form()
-            self._toggle_btn.configure(text="Έχετε ήδη λογαριασμό; Σύνδεση")
+            self._toggle_btn.configure(text="Έχετε ήδη λογαριασμό; Σύνδεση →")
 
     def _toggle_password(self):
         current = self._password_entry.cget("show")
