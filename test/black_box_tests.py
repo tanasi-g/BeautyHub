@@ -1,19 +1,16 @@
 """
-================================================================================
  BeautyHub — Black Box Testing
-================================================================================
+
 Δοκιμές "μαύρου κουτιού": ελέγχουμε τη ΣΥΜΠΕΡΙΦΟΡΑ της εφαρμογής μέσα από τα
 δημόσια interfaces (controllers / services), ΧΩΡΙΣ να εξετάζουμε την εσωτερική
 υλοποίηση. Δίνουμε εισόδους, ελέγχουμε εξόδους και αναμενόμενα σφάλματα.
 
-Τρέξιμο:
-    python black_box_tests.py
 
 Το script:
   * Χρησιμοποιεί ΠΡΟΣΩΡΙΝΗ βάση δεδομένων (δεν πειράζει τα πραγματικά σου δεδομένα).
   * Φορτώνει τα ίδια seed data με την εφαρμογή (γνωστοί χρήστες/κωδικοί).
   * Εμφανίζει αναλυτικά αποτελέσματα PASS / FAIL και τελική σύνοψη.
-================================================================================
+
 """
 
 from __future__ import annotations
@@ -39,29 +36,27 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-# ---------------------------------------------------------------------------
 #  ΠΡΟΣΩΡΙΝΗ ΒΑΣΗ — να μην μολύνουμε την πραγματική salon.db
-# ---------------------------------------------------------------------------
-import database.connection as dbconn  # noqa: E402
+
+import database.connection as dbconn 
 
 _TMP_DIR = tempfile.mkdtemp(prefix="beautyhub_test_")
 dbconn._DB_PATH = Path(_TMP_DIR) / "test_salon.db"
 
-from database.connection import Database          # noqa: E402
-from database.seed import seed_database           # noqa: E402
+from database.connection import Database         
+from database.seed import seed_database           
 
 # Controllers (το "μαύρο κουτί" που τεστάρουμε)
-from controllers.auth_controller import AuthController, AuthError                # noqa: E402
-from controllers.salon_controller import SalonController, SalonError             # noqa: E402
-from controllers.service_controller import ServiceController, ServiceError       # noqa: E402
-from controllers.eshop_controller import EShopController, EShopError             # noqa: E402
-from controllers.order_controller import OrderController, OrderError             # noqa: E402
-from controllers.appointment_controller import AppointmentController, AppointmentError  # noqa: E402
+from controllers.auth_controller import AuthController, AuthError                
+from controllers.salon_controller import SalonController, SalonError             
+from controllers.service_controller import ServiceController, ServiceError       
+from controllers.eshop_controller import EShopController, EShopError            
+from controllers.order_controller import OrderController, OrderError             
+from controllers.appointment_controller import AppointmentController, AppointmentError  
 
 
-# ---------------------------------------------------------------------------
 #  Μικρό test framework με χρωματιστή έξοδο
-# ---------------------------------------------------------------------------
+
 class Colors:
     GREEN = "\033[92m"
     RED = "\033[91m"
@@ -90,7 +85,7 @@ class TestRunner:
         """Τρέχει ένα test. Το func κάνει raise AssertionError σε αποτυχία."""
         try:
             func()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  
             self.failed += 1
             tb = traceback.format_exc()
             self.failures.append((name, tb))
@@ -124,9 +119,9 @@ class TestRunner:
         return 0
 
 
-# ---------------------------------------------------------------------------
+
 #  Βοηθητικά assertions
-# ---------------------------------------------------------------------------
+
 def assert_true(cond, msg="Αναμενόταν True"):
     if not cond:
         raise AssertionError(msg)
@@ -142,16 +137,16 @@ def assert_raises(exc_type, func, *args, **kwargs):
         func(*args, **kwargs)
     except exc_type:
         return
-    except Exception as other:  # noqa: BLE001
+    except Exception as other:  
         raise AssertionError(
             f"Αναμενόταν {exc_type.__name__}, ελήφθη {type(other).__name__}: {other}"
         )
     raise AssertionError(f"Αναμενόταν να γίνει raise {exc_type.__name__}, αλλά δεν έγινε.")
 
 
-# ===========================================================================
+
 #  TEST SUITES
-# ===========================================================================
+
 
 def test_auth(t: TestRunner):
     t.section("Αυθεντικοποίηση & Εγγραφή (AuthController)")
@@ -485,9 +480,8 @@ def test_appointments(t: TestRunner):
     t.run("Αποδοχή εκκρεμούς ραντεβού από υπάλληλο", employee_accept_pending)
 
 
-# ===========================================================================
 #  MAIN
-# ===========================================================================
+
 def main() -> int:
     print(f"{Colors.BOLD}{'=' * 62}{Colors.RESET}")
     print(f"{Colors.BOLD}  BeautyHub — BLACK BOX TESTING{Colors.RESET}")
@@ -515,7 +509,7 @@ def main() -> int:
         try:
             import shutil
             shutil.rmtree(_TMP_DIR, ignore_errors=True)
-        except Exception:  # noqa: BLE001
+        except Exception: 
             pass
 
     return exit_code
