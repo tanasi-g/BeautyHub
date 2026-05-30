@@ -389,7 +389,7 @@ class _SalonSearchPage(ctk.CTkFrame):
 
 
 class _EShopStorePage(ctk.CTkFrame):
-    _LIST_COLS = ["Όνομα", "Περιγραφή", "Τιμή", "Απόθεμα", ""]
+    _LIST_COLS = ["Όνομα", "Περιγραφή", "Τιμή", ""]
 
     def __init__(self, master, navigate):
         super().__init__(master, fg_color="transparent")
@@ -510,7 +510,6 @@ class _EShopStorePage(ctk.CTkFrame):
                 p.name,
                 (p.description or "—")[:40],
                 f"{p.price:.2f} €",
-                str(p.stock),
             ]):
                 ctk.CTkLabel(
                     self._table, text=val, anchor="w",
@@ -523,7 +522,7 @@ class _EShopStorePage(ctk.CTkFrame):
                 fg_color=_ACCENT_HV, hover_color=_ACCENT,
                 font=ctk.CTkFont(size=11),
                 command=lambda prod=p: self._open_detail(prod),
-            ).grid(row=r_idx, column=4, padx=4, pady=2)
+            ).grid(row=r_idx, column=3, padx=4, pady=2)
 
     # DETAIL 
     def _build_detail_frame(self):
@@ -568,11 +567,6 @@ class _EShopStorePage(ctk.CTkFrame):
             font=ctk.CTkFont(size=22, weight="bold"),
         )
         self._detail_price.pack(side="left")
-        self._detail_stock = ctk.CTkLabel(
-            info_row, text="",
-            text_color=_SUBTEXT, font=ctk.CTkFont(size=12),
-        )
-        self._detail_stock.pack(side="left", padx=(16, 0))
 
         # quantity selector 
         qty_section = ctk.CTkFrame(card, fg_color="transparent")
@@ -615,7 +609,6 @@ class _EShopStorePage(ctk.CTkFrame):
         self._detail_title.configure(text=product.name)
         self._detail_desc.configure(text=product.description or "Δεν υπάρχει περιγραφή.")
         self._detail_price.configure(text=f"{product.price:.2f} €")
-        self._detail_stock.configure(text=f"Διαθέσιμα: {product.stock} τεμ.")
         self._qty_label.configure(text="1")
         self._detail_msg.set("")
         self._hide_all()
